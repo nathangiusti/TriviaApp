@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trivia App</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Home Screen -->
+        <div id="home-screen" class="card">
+            <h1>🎯 Trivia Competition</h1>
+            
+            <!-- Role Selection -->
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="showPlayerJoin()">
+                    👥 Join as Team
+                </button>
+                <button class="btn btn-secondary" onclick="showAdminLogin()">
+                    🛠️ Admin Panel
+                </button>
+            </div>
+            
+            <!-- Player Join Form -->
+            <div id="player-join-form" class="hidden">
+                <h2>Join Game</h2>
+                <div class="form-group">
+                    <label for="game-id">Game ID:</label>
+                    <input type="text" id="game-id" placeholder="Enter game ID" required>
+                </div>
+                <div class="form-group">
+                    <label for="team-name">Team Name:</label>
+                    <input type="text" id="team-name" placeholder="Enter your team name" required>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="joinGame()">Join Game</button>
+                    <button class="btn btn-secondary" onclick="showHome()">Back</button>
+                </div>
+            </div>
+            
+            <!-- Admin Login Form -->
+            <div id="admin-login-form" class="hidden">
+                <h2>Admin Login</h2>
+                <div class="form-group">
+                    <label for="admin-game-id">Game ID:</label>
+                    <input type="text" id="admin-game-id" placeholder="Enter game ID" required>
+                </div>
+                <div class="form-group">
+                    <label for="admin-password">Admin Password:</label>
+                    <input type="password" id="admin-password" placeholder="Enter admin password" required>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="adminLogin()">Login</button>
+                    <button class="btn btn-secondary" onclick="showHome()">Back</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Waiting Room -->
+        <div id="waiting-room" class="card hidden">
+            <h1>🕐 Waiting Room</h1>
+            <div id="game-info">
+                <h3>Game: <span id="current-game-id"></span></h3>
+                <div class="status waiting">Waiting for game to start...</div>
+            </div>
+            
+            <div class="team-info" id="team-info">
+                <h3>Your Team: <span id="current-team-name"></span></h3>
+            </div>
+            
+            <div class="teams-section">
+                <h3>Teams Registered</h3>
+                <ul id="teams-list" class="team-list">
+                    <!-- Teams will be populated here -->
+                </ul>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn btn-danger" onclick="leaveGame()">Leave Game</button>
+            </div>
+        </div>
+        
+        <!-- Game Screen -->
+        <div id="game-screen" class="card hidden">
+            <h1>🎯 Trivia Game</h1>
+            
+            <!-- Game Status -->
+            <div class="status active" id="game-status">Game in Progress</div>
+            
+            <!-- Question Display -->
+            <div id="question-display" class="question-card hidden">
+                <div class="question-meta">
+                    Round <span id="question-round"></span> - Question <span id="question-number"></span>
+                </div>
+                <div class="question-text" id="question-text"></div>
+                
+                <!-- Answer Form (for teams) -->
+                <div id="answer-form" class="answer-form hidden">
+                    <div class="form-group">
+                        <input type="text" id="answer-input" class="answer-input" placeholder="Enter your answer..." required>
+                    </div>
+                    <button class="btn btn-primary" onclick="submitAnswer()" id="submit-btn">Submit Answer</button>
+                </div>
+                
+                <!-- Answer Submitted (for teams) -->
+                <div id="answer-submitted" class="hidden">
+                    <div class="alert success">
+                        ✅ Answer submitted! Waiting for results...
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Question Closed Display -->
+            <div id="question-closed" class="hidden">
+                <div class="alert info">
+                    ⏰ Question closed. Awaiting results...
+                </div>
+            </div>
+            
+            <!-- Results Display -->
+            <div id="results-display" class="hidden">
+                <h3>Question Results</h3>
+                <div id="results-content"></div>
+            </div>
+            
+            <!-- Current Leaderboard -->
+            <div class="leaderboard" id="leaderboard">
+                <div class="leaderboard-header">
+                    <h3>🏆 Leaderboard</h3>
+                </div>
+                <ul id="leaderboard-list" class="leaderboard-list">
+                    <!-- Leaderboard will be populated here -->
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Admin Panel -->
+        <div id="admin-panel" class="card hidden">
+            <h1>🛠️ Admin Panel</h1>
+            
+            <!-- Game Status -->
+            <div class="admin-panel">
+                <h3>Game Status</h3>
+                <div class="status" id="admin-game-status">Waiting</div>
+                <div id="admin-game-info">
+                    <p>Game ID: <strong id="admin-current-game-id"></strong></p>
+                    <p>Teams: <strong id="admin-team-count">0</strong></p>
+                    <p>Current Round: <strong id="admin-current-round">1</strong></p>
+                    <p>Current Question: <strong id="admin-current-question">1</strong></p>
+                </div>
+            </div>
+            
+            <!-- Teams List -->
+            <div class="admin-panel">
+                <h3>Registered Teams</h3>
+                <ul id="admin-teams-list" class="team-list">
+                    <!-- Admin teams list will be populated here -->
+                </ul>
+            </div>
+            
+            <!-- Game Controls -->
+            <div class="admin-panel">
+                <h3>Game Controls</h3>
+                <div class="admin-controls">
+                    <button class="btn btn-success" onclick="startGame()" id="start-game-btn">Start Game</button>
+                    <button class="btn btn-primary" onclick="startQuestion()" id="start-question-btn" disabled>Start Question</button>
+                    <button class="btn btn-warning" onclick="closeQuestion()" id="close-question-btn" disabled>Close Question</button>
+                    <button class="btn btn-primary" onclick="nextQuestion()" id="next-question-btn" disabled>Next Question</button>
+                </div>
+            </div>
+            
+            <!-- Current Question (Admin View) -->
+            <div id="admin-question-display" class="admin-panel hidden">
+                <h3>Current Question</h3>
+                <div class="question-card">
+                    <div class="question-meta">
+                        Round <span id="admin-question-round"></span> - Question <span id="admin-question-number"></span>
+                    </div>
+                    <div class="question-text" id="admin-question-text"></div>
+                    <div class="alert info">
+                        <strong>Correct Answer:</strong> <span id="admin-correct-answer"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Submitted Answers -->
+            <div id="answers-panel" class="admin-panel hidden">
+                <h3>Submitted Answers</h3>
+                <div id="answers-list" class="answers-list">
+                    <!-- Submitted answers will be populated here -->
+                </div>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn btn-danger" onclick="leaveGame()">Exit Admin</button>
+            </div>
+        </div>
+        
+        <!-- Game Finished -->
+        <div id="game-finished" class="card hidden">
+            <h1>🎉 Game Complete!</h1>
+            <div class="leaderboard">
+                <div class="leaderboard-header">
+                    <h3>🏆 Final Results</h3>
+                </div>
+                <ul id="final-leaderboard" class="leaderboard-list">
+                    <!-- Final leaderboard will be populated here -->
+                </ul>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="startNewGame()">New Game</button>
+            </div>
+        </div>
+        
+        <!-- Connection Status -->
+        <div id="connection-status" class="connection-status disconnected">
+            Connecting...
+        </div>
+    </div>
+    
+    <!-- Rejoin Modal -->
+    <div id="rejoin-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Reconnect to Game</h3>
+            </div>
+            <p>You were previously in game <strong id="rejoin-game-id"></strong>.</p>
+            <p>Enter your team name to reconnect:</p>
+            <div class="form-group">
+                <label for="rejoin-team-name">Team Name:</label>
+                <input type="text" id="rejoin-team-name" placeholder="Enter your team name">
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="gameClient.confirmRejoin()">Rejoin Game</button>
+                <button class="btn btn-secondary" onclick="gameClient.hideRejoinPrompt(); gameClient.clearGameState(); showHome();">Start Fresh</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Scripts -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="js/game-client.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
