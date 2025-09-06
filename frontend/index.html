@@ -12,18 +12,8 @@
         <div id="home-screen" class="card">
             <h1>🎯 Trivia Competition</h1>
             
-            <!-- Role Selection -->
-            <div class="btn-group">
-                <button class="btn btn-primary" onclick="showPlayerJoin()">
-                    👥 Join as Team
-                </button>
-                <button class="btn btn-secondary" onclick="showAdminLogin()">
-                    🛠️ Admin Panel
-                </button>
-            </div>
-            
             <!-- Player Join Form -->
-            <div id="player-join-form" class="hidden">
+            <div id="player-join-form">
                 <h2>Join Game</h2>
                 <div class="form-group">
                     <label for="game-id">Game ID:</label>
@@ -35,24 +25,6 @@
                 </div>
                 <div class="btn-group">
                     <button class="btn btn-primary" onclick="joinGame()">Join Game</button>
-                    <button class="btn btn-secondary" onclick="showHome()">Back</button>
-                </div>
-            </div>
-            
-            <!-- Admin Login Form -->
-            <div id="admin-login-form" class="hidden">
-                <h2>Admin Login</h2>
-                <div class="form-group">
-                    <label for="admin-game-id">Game ID:</label>
-                    <input type="text" id="admin-game-id" placeholder="Enter game ID" required>
-                </div>
-                <div class="form-group">
-                    <label for="admin-password">Admin Password:</label>
-                    <input type="password" id="admin-password" placeholder="Enter admin password" required>
-                </div>
-                <div class="btn-group">
-                    <button class="btn btn-primary" onclick="adminLogin()">Login</button>
-                    <button class="btn btn-secondary" onclick="showHome()">Back</button>
                 </div>
             </div>
         </div>
@@ -135,67 +107,6 @@
             </div>
         </div>
         
-        <!-- Admin Panel -->
-        <div id="admin-panel" class="card hidden">
-            <h1>🛠️ Admin Panel</h1>
-            
-            <!-- Game Status -->
-            <div class="admin-panel">
-                <h3>Game Status</h3>
-                <div class="status" id="admin-game-status">Waiting</div>
-                <div id="admin-game-info">
-                    <p>Game ID: <strong id="admin-current-game-id"></strong></p>
-                    <p>Teams: <strong id="admin-team-count">0</strong></p>
-                    <p>Current Round: <strong id="admin-current-round">1</strong></p>
-                    <p>Current Question: <strong id="admin-current-question">1</strong></p>
-                </div>
-            </div>
-            
-            <!-- Teams List -->
-            <div class="admin-panel">
-                <h3>Registered Teams</h3>
-                <ul id="admin-teams-list" class="team-list">
-                    <!-- Admin teams list will be populated here -->
-                </ul>
-            </div>
-            
-            <!-- Game Controls -->
-            <div class="admin-panel">
-                <h3>Game Controls</h3>
-                <div class="admin-controls">
-                    <button class="btn btn-success" onclick="startGame()" id="start-game-btn">Start Game</button>
-                    <button class="btn btn-primary" onclick="startQuestion()" id="start-question-btn" disabled>Start Question</button>
-                    <button class="btn btn-warning" onclick="closeQuestion()" id="close-question-btn" disabled>Close Question</button>
-                    <button class="btn btn-primary" onclick="nextQuestion()" id="next-question-btn" disabled>Next Question</button>
-                </div>
-            </div>
-            
-            <!-- Current Question (Admin View) -->
-            <div id="admin-question-display" class="admin-panel hidden">
-                <h3>Current Question</h3>
-                <div class="question-card">
-                    <div class="question-meta">
-                        Round <span id="admin-question-round"></span> - Question <span id="admin-question-number"></span>
-                    </div>
-                    <div class="question-text" id="admin-question-text"></div>
-                    <div class="alert info">
-                        <strong>Correct Answer:</strong> <span id="admin-correct-answer"></span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Submitted Answers -->
-            <div id="answers-panel" class="admin-panel hidden">
-                <h3>Submitted Answers</h3>
-                <div id="answers-list" class="answers-list">
-                    <!-- Submitted answers will be populated here -->
-                </div>
-            </div>
-            
-            <div class="btn-group">
-                <button class="btn btn-danger" onclick="leaveGame()">Exit Admin</button>
-            </div>
-        </div>
         
         <!-- Game Finished -->
         <div id="game-finished" class="card hidden">

@@ -78,7 +78,7 @@ def main():
     
     # Start the server
     try:
-        socketio.run(app, host='0.0.0.0', port=5000, debug=False)
+        socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)
     except KeyboardInterrupt:
         print("\n👋 Shutting down server...")
     except Exception as e:

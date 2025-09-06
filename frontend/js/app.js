@@ -16,14 +16,24 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Setup event handlers
         setupEventHandlers();
         
-        // Check for existing game state
-        const gameState = gameClient.getGameState();
-        if (gameState.gameId) {
-            // User has existing game state, will be handled by reconnection logic
-            console.log('Found existing game state:', gameState);
+        // Check if we're on the admin page
+        const adminLoginScreen = document.getElementById('admin-login-screen');
+        if (adminLoginScreen) {
+            // We're on the admin page - ensure admin panel is hidden and login screen is visible
+            hideAllScreens();
+            adminLoginScreen.classList.remove('hidden');
+            console.log('Admin page detected, showing login form only');
         } else {
-            // Show home screen for new users
+            // On main page - always start with home screen showing only join game
+            // Even if there's existing game state, let user choose to reconnect or start fresh
             showHome();
+            
+            // Check for existing game state but don't auto-reconnect
+            const gameState = gameClient.getGameState();
+            if (gameState.gameId) {
+                console.log('Found existing game state:', gameState);
+                // The reconnection logic will handle showing rejoin prompt if appropriate
+            }
         }
         
     } catch (error) {
@@ -39,6 +49,7 @@ function setupEventHandlers() {
         showAlert('success', `Successfully joined as ${data.team_name}!`);
         document.getElementById('current-game-id').textContent = data.game_id;
         document.getElementById('current-team-name').textContent = data.team_name;
+        // Only show waiting room after successful team join
         showWaitingRoom();
     });
     
@@ -54,6 +65,7 @@ function setupEventHandlers() {
         if (gameState.isAdmin) {
             updateAdminGameStatus('in_progress');
         } else {
+            // Only show game screen when game actually starts
             showGameScreen();
         }
     });
@@ -108,6 +120,7 @@ function setupEventHandlers() {
     
     // Game finished
     gameClient.on('game_finished', (data) => {
+        // Only show game finished screen when all questions are done
         showGameFinished(data.final_leaderboard);
     });
     
@@ -119,9 +132,11 @@ function setupEventHandlers() {
             gameClient.gameState.adminPassword = adminPassword;
             gameClient.saveGameState();
             
+            // Hide login form and show admin panel
+            hideAdminError();
+            document.getElementById('admin-login-screen').classList.add('hidden');
             document.getElementById('admin-current-game-id').textContent = data.game_id;
             showAdminPanel();
-            showAlert('success', 'Admin login successful!');
         } else if (data.message) {
             showAlert('success', data.message);
         }
@@ -134,7 +149,12 @@ function setupEventHandlers() {
     
     // Error messages
     gameClient.on('error', (data) => {
-        showAlert('error', data.message);
+        // Check if we're on the admin page and show admin-specific error
+        if (document.getElementById('admin-login-form') && !document.getElementById('admin-login-form').classList.contains('hidden')) {
+            showAdminError(data.message);
+        } else {
+            showAlert('error', data.message);
+        }
     });
     
     // Connection events
@@ -151,8 +171,13 @@ function setupEventHandlers() {
 function showHome() {
     hideAllScreens();
     document.getElementById('home-screen').classList.remove('hidden');
-    document.getElementById('player-join-form').classList.add('hidden');
-    document.getElementById('admin-login-form').classList.add('hidden');
+    document.getElementById('player-join-form').classList.remove('hidden');
+    
+    // Hide any admin-specific elements that might exist
+    const adminLoginForm = document.getElementById('admin-login-form');
+    if (adminLoginForm) {
+        adminLoginForm.classList.add('hidden');
+    }
 }
 
 function showPlayerJoin() {
@@ -198,7 +223,9 @@ function showGameScreen() {
 
 function showAdminPanel() {
     hideAllScreens();
-    document.getElementById('admin-panel').classList.remove('hidden');
+    const adminPanel = document.getElementById('admin-panel');
+    adminPanel.classList.remove('hidden');
+    adminPanel.style.display = ''; // Remove inline style
     
     // Request current game state
     updateAdminInfo();
@@ -206,14 +233,19 @@ function showAdminPanel() {
 
 function showGameFinished(leaderboard) {
     hideAllScreens();
-    document.getElementById('game-finished').classList.remove('hidden');
+    const gameFinished = document.getElementById('game-finished');
+    gameFinished.classList.remove('hidden');
+    gameFinished.style.display = ''; // Remove inline style
     updateFinalLeaderboard(leaderboard);
 }
 
 function hideAllScreens() {
-    const screens = ['home-screen', 'waiting-room', 'game-screen', 'admin-panel', 'game-finished'];
+    const screens = ['home-screen', 'waiting-room', 'game-screen', 'admin-panel', 'game-finished', 'admin-login-screen'];
     screens.forEach(screenId => {
-        document.getElementById(screenId).classList.add('hidden');
+        const element = document.getElementById(screenId);
+        if (element) {
+            element.classList.add('hidden');
+        }
     });
 }
 
@@ -238,15 +270,24 @@ async function adminLogin() {
     const gameId = document.getElementById('admin-game-id').value.trim();
     const password = document.getElementById('admin-password').value.trim();
     
+    // Clear any existing errors
+    hideAdminError();
+    
     if (!gameId || !password) {
-        showAlert('error', 'Please enter both Game ID and Password');
+        showAdminError('Please enter both Game ID and Password');
+        return;
+    }
+    
+    // Check if gameClient exists
+    if (!gameClient) {
+        showAdminError('Game client not initialized. Please refresh the page.');
         return;
     }
     
     try {
         gameClient.adminLogin(gameId, password);
     } catch (error) {
-        showAlert('error', 'Failed to login: ' + error.message);
+        showAdminError('Failed to login: ' + error.message);
     }
 }
 
@@ -590,6 +631,24 @@ function showAlert(type, message) {
                 alert.parentNode.removeChild(alert);
             }
         }, 5000);
+    }
+}
+
+// Admin-specific error handling functions
+function showAdminError(message) {
+    const errorDiv = document.getElementById('admin-error');
+    const errorMessage = document.getElementById('admin-error-message');
+    
+    if (errorDiv && errorMessage) {
+        errorMessage.textContent = message;
+        errorDiv.classList.remove('hidden');
+    }
+}
+
+function hideAdminError() {
+    const errorDiv = document.getElementById('admin-error');
+    if (errorDiv) {
+        errorDiv.classList.add('hidden');
     }
 }
 

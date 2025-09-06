@@ -28,6 +28,11 @@ def index():
     """Serve the main frontend page"""
     return send_file('../frontend/index.html')
 
+@app.route('/admin')
+def admin():
+    """Serve the admin page"""
+    return send_file('../frontend/admin.html')
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
@@ -336,4 +341,4 @@ def handle_get_leaderboard(data):
 
 if __name__ == '__main__':
     # Development server
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)

@@ -36,7 +36,8 @@ A real-time multiplayer trivia webapp with persistent connections and comprehens
 - **Connection Manager** - Robust WebSocket handling with automatic reconnection
 
 ### Testing Infrastructure
-- **79 automated tests** with pytest
+- **106+ automated tests** with pytest
+- **Frontend component visibility tests** ensuring proper UI flow
 - **End-to-end testing** with Selenium WebDriver
 - **Integration tests** for multi-component workflows
 - **Manual testing framework** for friend/family testing
@@ -61,23 +62,23 @@ This will:
 - **Admin Password:** `admin123`
 
 ### 3. Play the Game!
-- **Teams:** Click "Join as Team", enter game ID and team name
-- **Admin:** Click "Admin Panel", enter game ID and password
+- **Teams:** Enter game ID and team name in the join form (only component visible on load)
+- **Admin:** Navigate to `/admin` URL, enter game ID and password
 - **Host controls** the game flow, **teams** answer questions in real-time
 
 ## 🎮 How to Play
 
 ### For Teams
-1. **Join Game** - Enter the game ID provided by host and your team name
-2. **Wait for Start** - See other teams in the waiting room
-3. **Answer Questions** - Type answers when questions appear
-4. **View Results** - See if you were correct and updated leaderboard
-5. **Continue Playing** - Answer all questions to complete the game
+1. **Join Game** - Enter the game ID provided by host and your team name (only visible component initially)
+2. **Wait for Start** - After joining, automatically moved to waiting room to see other teams
+3. **Answer Questions** - When game starts, moved to game screen to answer questions
+4. **View Results** - See if you were correct and updated leaderboard in real-time
+5. **Game Complete** - After all questions, moved to final results screen
 
 ### For Host/Admin
-1. **Login** - Use admin panel with game ID and password
+1. **Access Admin** - Navigate to `/admin` URL and login with game ID and password
 2. **Monitor Teams** - See teams as they join in real-time
-3. **Start Game** - Begin the trivia session
+3. **Start Game** - Begin the trivia session (moves all teams to game screen)
 4. **Control Questions** - Start each question, close for answers, grade responses
 5. **Manage Flow** - Progress through all questions to finish the game
 
@@ -105,7 +106,7 @@ round_num,question_num,question,answer
 
 ### Automated Test Suite
 ```bash
-# Run all backend tests (79 tests)
+# Run all tests (100+ tests)
 python -m pytest tests/ -v --ignore=tests/test_e2e.py
 
 # Run with coverage report
@@ -130,6 +131,7 @@ python -m pytest tests/test_e2e.py -v
 
 ### Test Coverage
 - **Unit Tests:** All backend components individually tested
+- **Frontend Tests:** Component visibility and UI workflow validation
 - **Integration Tests:** Component interaction and full workflows
 - **WebSocket Tests:** Real-time communication and state synchronization
 - **E2E Tests:** Complete user workflows with browser automation
@@ -228,6 +230,9 @@ TriviaApp/
 │   ├── test_websocket_manager.py
 │   ├── test_integration.py
 │   ├── test_websocket_integration.py
+│   ├── test_routes.py      # Web route testing
+│   ├── test_frontend_component_visibility.py  # UI component flow tests
+│   ├── test_frontend_workflow.py  # Selenium-based frontend tests
 │   └── test_e2e.py         # Selenium end-to-end tests
 ├── sample_questions.csv    # Demo question set
 ├── requirements.txt        # Python dependencies
@@ -247,15 +252,16 @@ TriviaApp/
 
 ### Complete Game Flow
 1. **Setup:** Admin creates game, loads questions from CSV
-2. **Registration:** Teams join using game ID, see waiting room
-3. **Game Start:** Admin initiates game, teams move to game screen
-4. **Question Loop:**
+2. **Initial State:** Teams see only join game form (no other components visible)
+3. **Registration:** Teams join using game ID → automatically moved to waiting room
+4. **Game Start:** Admin initiates game → teams automatically moved to game screen  
+5. **Question Loop:**
    - Admin starts question → Question displays to all teams
    - Teams submit answers → Admin sees all submissions
    - Admin closes question → Teams see "awaiting results"  
    - Admin grades each answer → Teams see results and updated leaderboard
    - Admin starts next question → Repeat until all questions complete
-5. **Game End:** Final leaderboard shown, option to start new game
+6. **Game End:** Teams automatically moved to final results screen with complete leaderboard
 
 ### Real-Time Events
 - **Team joins/leaves** - Live updates to team lists
@@ -268,7 +274,8 @@ TriviaApp/
 ## 🔧 API Reference
 
 ### REST API Endpoints
-- `GET /` - Serve main application page
+- `GET /` - Serve main application page (shows only join game form initially)
+- `GET /admin` - Serve admin login page
 - `GET /health` - Health check endpoint  
 - `POST /api/create-game` - Create new game with CSV file
 - `GET /api/games/<game_id>` - Get game information

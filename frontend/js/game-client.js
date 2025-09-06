@@ -259,6 +259,13 @@ class GameClient {
 
     // Handle reconnection after disconnect
     handleReconnection() {
+        // Don't auto-reconnect if we're on the admin login page
+        const adminLoginScreen = document.getElementById('admin-login-screen');
+        if (adminLoginScreen && !adminLoginScreen.classList.contains('hidden')) {
+            // We're on the admin login page, don't auto-login
+            return;
+        }
+        
         if (this.gameState.gameId) {
             // Try to rejoin based on saved state
             if (this.gameState.isAdmin && this.gameState.adminPassword) {
