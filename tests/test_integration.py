@@ -1,8 +1,8 @@
 import pytest
-import tempfile
 import os
 from backend.question_manager import QuestionManager
 from backend.game_state import GameStateManager, GameStatus
+from .test_helpers import create_temp_csv, cleanup_temp_file
 
 
 class TestIntegration:
@@ -12,11 +12,6 @@ class TestIntegration:
         self.qm = QuestionManager()
         self.gsm = GameStateManager(self.qm)
     
-    def create_temp_csv(self, content: str) -> str:
-        temp_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.csv')
-        temp_file.write(content)
-        temp_file.close()
-        return temp_file.name
     
     def test_full_game_workflow_integration(self):
         """Test a complete game from creation to finish"""
@@ -26,7 +21,7 @@ class TestIntegration:
 2,1,What is the capital of France?,Paris
 2,2,What is the capital of Spain?,Madrid"""
         
-        csv_file = self.create_temp_csv(csv_content)
+        csv_file = create_temp_csv(csv_content)
         
         try:
             # 1. Create game (integrates QuestionManager + GameStateManager)
@@ -115,7 +110,7 @@ class TestIntegration:
 1,2,Test Question 2,Answer 2
 2,1,Test Question 3,Answer 3"""
         
-        csv_file = self.create_temp_csv(csv_content)
+        csv_file = create_temp_csv(csv_content)
         
         try:
             # Create game
@@ -171,8 +166,8 @@ class TestIntegration:
         csv_content2 = """round_num,question_num,question,answer
 1,1,Game 2 Question,Game 2 Answer"""
         
-        csv_file1 = self.create_temp_csv(csv_content1)
-        csv_file2 = self.create_temp_csv(csv_content2)
+        csv_file1 = create_temp_csv(csv_content1)
+        csv_file2 = create_temp_csv(csv_content2)
         
         try:
             # Create two different games
@@ -229,7 +224,7 @@ class TestIntegration:
         csv_content = """round_num,question_num,question,answer
 1,1,Test Question,Test Answer"""
         
-        csv_file = self.create_temp_csv(csv_content)
+        csv_file = create_temp_csv(csv_content)
         
         try:
             self.gsm.create_game("error_test", csv_file, "admin123")
@@ -274,7 +269,7 @@ class TestIntegration:
 1,2,"What is the capital of United States?","Washington D.C."
 2,1,"Name a programming language","Python"""
         
-        csv_file = self.create_temp_csv(csv_content)
+        csv_file = create_temp_csv(csv_content)
         
         try:
             self.gsm.create_game("format_test", csv_file, "admin123")

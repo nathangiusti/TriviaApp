@@ -1,10 +1,10 @@
 import pytest
-import tempfile
 import os
 import json
 from backend.websocket_manager import WebSocketManager, WebSocketMessage, EventType, ClientConnection
 from backend.game_state import GameStateManager, GameStatus
 from backend.question_manager import QuestionManager
+from .test_helpers import create_standard_test_csv, cleanup_temp_file
 
 
 class TestWebSocketMessage:
@@ -48,21 +48,13 @@ class TestWebSocketManager:
         self.gsm = GameStateManager(self.qm)
         self.wsm = WebSocketManager(self.gsm)
         
-        # Create a test game
-        csv_content = """round_num,question_num,question,answer
-1,1,What is 2+2?,4
-1,2,What is 3+3?,6
-2,1,What is the capital of France?,Paris"""
-        
-        self.csv_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.csv')
-        self.csv_file.write(csv_content)
-        self.csv_file.close()
-        
-        self.gsm.create_game("test_game", self.csv_file.name, "admin123")
+        # Create a test game using standard test CSV
+        self.csv_file_path = create_standard_test_csv()
+        self.gsm.create_game("test_game", self.csv_file_path, "admin123")
     
     def teardown_method(self):
-        if hasattr(self, 'csv_file'):
-            os.unlink(self.csv_file.name)
+        if hasattr(self, 'csv_file_path'):
+            cleanup_temp_file(self.csv_file_path)
     
     def test_connect_client(self):
         connection = self.wsm.connect_client("client1")
@@ -143,9 +135,17 @@ class TestWebSocketManager:
         
         responses = self.wsm.handle_message("admin1", message)
         
-        assert len(responses) == 1
-        assert responses[0].event_type == EventType.SUCCESS
-        assert responses[0].data["is_admin"] is True
+        # Should get success message and team list update
+        assert len(responses) == 2
+        
+        success_msgs = [r for r in responses if r.event_type == EventType.SUCCESS]
+        team_list_msgs = [r for r in responses if r.event_type == EventType.TEAM_LIST_UPDATE]
+        
+        assert len(success_msgs) == 1
+        assert len(team_list_msgs) == 1
+        
+        assert success_msgs[0].data["is_admin"] is True
+        assert team_list_msgs[0].data["teams"] == []  # Empty team list initially
         
         connection = self.wsm.get_client_connection("admin1")
         assert connection.is_admin is True

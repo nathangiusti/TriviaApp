@@ -60,8 +60,8 @@ class QuestionManager:
             self.games[game_id] = questions
             return True
             
-        except ValueError as e:
-            raise e
+        except ValueError:
+            raise
         except Exception as e:
             raise Exception(f"Failed to load CSV: {str(e)}")
     

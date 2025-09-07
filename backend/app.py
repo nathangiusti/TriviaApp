@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory, send_file
+from flask import Flask, request, jsonify, send_file
 from flask_socketio import SocketIO, emit, disconnect
 import uuid
 import os
@@ -167,178 +167,88 @@ def send_message_to_client(client_id: str, message: WebSocketMessage):
         socketio.emit('message', message.to_json(), room=socket_id)
 
 
-# Additional SocketIO event handlers for specific events
-@socketio.on('join_game')
-def handle_join_game(data):
-    """Handle team joining game"""
+def _handle_socketio_event(event_type: EventType, data: dict, broadcast_to_target: bool = False, emit_as_event_type: bool = False):
+    """Generic handler for SocketIO events to reduce code duplication"""
     socket_id = request.sid
     if socket_id not in socket_to_client:
         emit('error', {'message': 'Client not registered'})
         return
     
     client_id = socket_to_client[socket_id]
-    message = WebSocketMessage(EventType.JOIN_GAME, data)
+    message = WebSocketMessage(event_type, data)
     responses = websocket_manager.handle_message(client_id, message)
     
     for response in responses:
         target_client = response.data.get('target_client')
-        if target_client and target_client in client_to_socket:
+        
+        if broadcast_to_target and target_client and target_client in client_to_socket:
             target_socket = client_to_socket[target_client]
-            socketio.emit(response.event_type.value, response.data, room=target_socket)
+            if emit_as_event_type:
+                socketio.emit(response.event_type.value, response.data, room=target_socket)
+            else:
+                socketio.emit('message', response.to_json(), room=target_socket)
         else:
-            emit(response.event_type.value, response.data)
+            if emit_as_event_type:
+                emit(response.event_type.value, response.data)
+            else:
+                emit('message', response.to_json())
+
+
+# SocketIO event handlers using the generic handler
+@socketio.on('join_game')
+def handle_join_game(data):
+    """Handle team joining game"""
+    _handle_socketio_event(EventType.JOIN_GAME, data, broadcast_to_target=True, emit_as_event_type=True)
 
 
 @socketio.on('admin_login')
 def handle_admin_login(data):
     """Handle admin login"""
-    socket_id = request.sid
-    if socket_id not in socket_to_client:
-        emit('error', {'message': 'Client not registered'})
-        return
-    
-    client_id = socket_to_client[socket_id]
-    message = WebSocketMessage(EventType.ADMIN_LOGIN, data)
-    responses = websocket_manager.handle_message(client_id, message)
-    
-    for response in responses:
-        emit(response.event_type.value, response.data)
+    _handle_socketio_event(EventType.ADMIN_LOGIN, data, emit_as_event_type=True)
 
 
 @socketio.on('start_game')
 def handle_start_game(data):
     """Handle game start"""
-    socket_id = request.sid
-    if socket_id not in socket_to_client:
-        emit('error', {'message': 'Client not registered'})
-        return
-    
-    client_id = socket_to_client[socket_id]
-    message = WebSocketMessage(EventType.START_GAME, data)
-    responses = websocket_manager.handle_message(client_id, message)
-    
-    for response in responses:
-        target_client = response.data.get('target_client')
-        if target_client and target_client in client_to_socket:
-            target_socket = client_to_socket[target_client]
-            socketio.emit(response.event_type.value, response.data, room=target_socket)
+    _handle_socketio_event(EventType.START_GAME, data, broadcast_to_target=True, emit_as_event_type=True)
 
 
 @socketio.on('start_question')
 def handle_start_question(data):
     """Handle question start"""
-    socket_id = request.sid
-    if socket_id not in socket_to_client:
-        emit('error', {'message': 'Client not registered'})
-        return
-    
-    client_id = socket_to_client[socket_id]
-    message = WebSocketMessage(EventType.START_QUESTION, data)
-    responses = websocket_manager.handle_message(client_id, message)
-    
-    for response in responses:
-        target_client = response.data.get('target_client')
-        if target_client and target_client in client_to_socket:
-            target_socket = client_to_socket[target_client]
-            socketio.emit(response.event_type.value, response.data, room=target_socket)
+    _handle_socketio_event(EventType.START_QUESTION, data, broadcast_to_target=True, emit_as_event_type=True)
 
 
 @socketio.on('submit_answer')
 def handle_submit_answer(data):
     """Handle answer submission"""
-    socket_id = request.sid
-    if socket_id not in socket_to_client:
-        emit('error', {'message': 'Client not registered'})
-        return
-    
-    client_id = socket_to_client[socket_id]
-    message = WebSocketMessage(EventType.SUBMIT_ANSWER, data)
-    responses = websocket_manager.handle_message(client_id, message)
-    
-    for response in responses:
-        target_client = response.data.get('target_client')
-        if target_client and target_client in client_to_socket:
-            target_socket = client_to_socket[target_client]
-            socketio.emit(response.event_type.value, response.data, room=target_socket)
-        else:
-            emit(response.event_type.value, response.data)
+    _handle_socketio_event(EventType.SUBMIT_ANSWER, data, broadcast_to_target=True, emit_as_event_type=True)
 
 
 @socketio.on('close_question')
 def handle_close_question(data):
     """Handle question closing"""
-    socket_id = request.sid
-    if socket_id not in socket_to_client:
-        emit('error', {'message': 'Client not registered'})
-        return
-    
-    client_id = socket_to_client[socket_id]
-    message = WebSocketMessage(EventType.CLOSE_QUESTION, data)
-    responses = websocket_manager.handle_message(client_id, message)
-    
-    for response in responses:
-        target_client = response.data.get('target_client')
-        if target_client and target_client in client_to_socket:
-            target_socket = client_to_socket[target_client]
-            socketio.emit(response.event_type.value, response.data, room=target_socket)
+    _handle_socketio_event(EventType.CLOSE_QUESTION, data, broadcast_to_target=True, emit_as_event_type=True)
 
 
 @socketio.on('grade_answer')
 def handle_grade_answer(data):
     """Handle answer grading"""
-    socket_id = request.sid
-    if socket_id not in socket_to_client:
-        emit('error', {'message': 'Client not registered'})
-        return
-    
-    client_id = socket_to_client[socket_id]
-    message = WebSocketMessage(EventType.GRADE_ANSWER, data)
-    responses = websocket_manager.handle_message(client_id, message)
-    
-    for response in responses:
-        target_client = response.data.get('target_client')
-        if target_client and target_client in client_to_socket:
-            target_socket = client_to_socket[target_client]
-            socketio.emit(response.event_type.value, response.data, room=target_socket)
+    _handle_socketio_event(EventType.GRADE_ANSWER, data, broadcast_to_target=True, emit_as_event_type=True)
 
 
 @socketio.on('next_question')
 def handle_next_question(data):
     """Handle moving to next question"""
-    socket_id = request.sid
-    if socket_id not in socket_to_client:
-        emit('error', {'message': 'Client not registered'})
-        return
-    
-    client_id = socket_to_client[socket_id]
-    message = WebSocketMessage(EventType.NEXT_QUESTION, data)
-    responses = websocket_manager.handle_message(client_id, message)
-    
-    for response in responses:
-        target_client = response.data.get('target_client')
-        if target_client and target_client in client_to_socket:
-            target_socket = client_to_socket[target_client]
-            socketio.emit(response.event_type.value, response.data, room=target_socket)
-        else:
-            emit(response.event_type.value, response.data)
+    _handle_socketio_event(EventType.NEXT_QUESTION, data, broadcast_to_target=True, emit_as_event_type=True)
 
 
 @socketio.on('get_leaderboard')
 def handle_get_leaderboard(data):
     """Handle leaderboard request"""
-    socket_id = request.sid
-    if socket_id not in socket_to_client:
-        emit('error', {'message': 'Client not registered'})
-        return
-    
-    client_id = socket_to_client[socket_id]
-    message = WebSocketMessage(EventType.GET_LEADERBOARD, data)
-    responses = websocket_manager.handle_message(client_id, message)
-    
-    for response in responses:
-        emit(response.event_type.value, response.data)
+    _handle_socketio_event(EventType.GET_LEADERBOARD, data, emit_as_event_type=True)
 
 
 if __name__ == '__main__':
     # Development server
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)
+    socketio.run(app, debug=True, host='0.0.0.0', port=3001, allow_unsafe_werkzeug=True)

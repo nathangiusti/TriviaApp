@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trivia App - Admin</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="/frontend/css/styles.css">
 </head>
 <body>
     <div class="container">
@@ -34,20 +34,13 @@
             </div>
         </div>
         
-        <!-- Admin Panel -->
-        <div id="admin-panel" class="card hidden" style="display: none !important;">
-            <h1>🛠️ Admin Panel</h1>
+        <!-- Pre-Game Admin Panel -->
+        <div id="admin-pregame-panel" class="card hidden" style="display: none !important;">
+            <h1>🛠️ Admin Panel - Pre-Game</h1>
             
-            <!-- Game Status -->
-            <div class="admin-panel">
-                <h3>Game Status</h3>
-                <div class="status" id="admin-game-status">Waiting</div>
-                <div id="admin-game-info">
-                    <p>Game ID: <strong id="admin-current-game-id"></strong></p>
-                    <p>Teams: <strong id="admin-team-count">0</strong></p>
-                    <p>Current Round: <strong id="admin-current-round">1</strong></p>
-                    <p>Current Question: <strong id="admin-current-question">1</strong></p>
-                </div>
+            <div id="admin-game-info">
+                <p>Game ID: <strong id="admin-current-game-id"></strong></p>
+                <p>Teams: <strong id="admin-team-count">0</strong></p>
             </div>
             
             <!-- Teams List -->
@@ -56,16 +49,41 @@
                 <ul id="admin-teams-list" class="team-list">
                     <!-- Admin teams list will be populated here -->
                 </ul>
+                <div class="alert info" id="no-teams-message">
+                    No teams have joined yet. Teams will appear here as they register.
+                </div>
             </div>
             
-            <!-- Game Controls -->
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="startGame()" id="start-game-btn">Start Game</button>
+                <button class="btn btn-danger" onclick="leaveGame()">Exit Admin</button>
+            </div>
+        </div>
+        
+        <!-- Game Control Admin Panel -->
+        <div id="admin-game-panel" class="card hidden" style="display: none !important;">
+            <h1>🛠️ Admin Panel - Game Control</h1>
+            
+            <!-- Game Status -->
             <div class="admin-panel">
-                <h3>Game Controls</h3>
+                <h3>Game Status</h3>
+                <div class="status" id="admin-game-status">In Progress</div>
+                <div id="admin-game-info-control">
+                    <p>Game ID: <strong id="admin-current-game-id-control"></strong></p>
+                    <p>Teams: <strong id="admin-team-count-control">0</strong></p>
+                    <p>Current Round: <strong id="admin-current-round">1</strong></p>
+                    <p>Current Question: <strong id="admin-current-question">1</strong></p>
+                </div>
+            </div>
+            
+            <!-- Question Controls -->
+            <div class="admin-panel">
+                <h3>Question Controls</h3>
                 <div class="admin-controls">
-                    <button class="btn btn-success" onclick="startGame()" id="start-game-btn">Start Game</button>
-                    <button class="btn btn-primary" onclick="startQuestion()" id="start-question-btn" disabled>Start Question</button>
+                    <button class="btn btn-primary" onclick="startQuestion()" id="start-question-btn">Open Question</button>
                     <button class="btn btn-warning" onclick="closeQuestion()" id="close-question-btn" disabled>Close Question</button>
-                    <button class="btn btn-primary" onclick="nextQuestion()" id="next-question-btn" disabled>Next Question</button>
+                    <button class="btn btn-secondary" onclick="previousQuestion()" id="previous-question-btn" disabled>← Previous Question</button>
+                    <button class="btn btn-primary" onclick="nextQuestion()" id="next-question-btn" disabled>Next Question →</button>
                 </div>
             </div>
             
@@ -113,14 +131,14 @@
         </div>
         
         <!-- Connection Status -->
-        <div id="connection-status" class="connection-status hidden">
+        <div id="connection-status" class="connection-status disconnected">
             Connecting...
         </div>
     </div>
     
     <!-- Scripts -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <script src="js/game-client.js"></script>
-    <script src="js/app.js"></script>
+    <script src="/frontend/js/game-client.js"></script>
+    <script src="/frontend/js/app.js"></script>
 </body>
 </html>

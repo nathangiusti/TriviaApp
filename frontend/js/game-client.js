@@ -13,7 +13,7 @@ class GameClient {
     }
 
     // Initialize connection with persistence support
-    connect(serverUrl = 'http://localhost:5000') {
+    connect(serverUrl = 'http://localhost:3001') {
         if (this.socket && this.socket.connected) {
             return Promise.resolve();
         }

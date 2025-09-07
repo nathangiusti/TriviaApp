@@ -43,9 +43,11 @@ class TestRoutes:
         assert 'admin-error' in html_content  # Error display element
         assert 'admin-login-screen' in html_content  # Updated ID
         
-        # Ensure admin panel and game finished screens exist but are hidden initially
-        assert 'id="admin-panel"' in html_content
-        assert 'admin-panel" class="card hidden" style="display: none !important;"' in html_content
+        # Ensure admin panels exist but are hidden initially
+        assert 'id="admin-pregame-panel"' in html_content
+        assert 'id="admin-game-panel"' in html_content
+        assert 'admin-pregame-panel" class="card hidden" style="display: none !important;"' in html_content
+        assert 'admin-game-panel" class="card hidden" style="display: none !important;"' in html_content
         assert 'id="game-finished"' in html_content
         assert 'game-finished" class="card hidden" style="display: none !important;"' in html_content
         

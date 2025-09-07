@@ -1,9 +1,9 @@
 import pytest
-import tempfile
 import os
 from backend.websocket_manager import WebSocketManager, WebSocketMessage, EventType
 from backend.game_state import GameStateManager, GameStatus
 from backend.question_manager import QuestionManager
+from .test_helpers import create_temp_csv, cleanup_temp_file
 
 
 class TestWebSocketGameIntegration:
@@ -21,15 +21,12 @@ class TestWebSocketGameIntegration:
 2,1,What is the capital of France?,Paris
 2,2,What is the capital of Spain?,Madrid"""
         
-        self.csv_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.csv')
-        self.csv_file.write(csv_content)
-        self.csv_file.close()
-        
-        self.gsm.create_game("integration_test", self.csv_file.name, "admin123")
+        self.csv_file_path = create_temp_csv(csv_content)
+        self.gsm.create_game("integration_test", self.csv_file_path, "admin123")
     
     def teardown_method(self):
-        if hasattr(self, 'csv_file'):
-            os.unlink(self.csv_file.name)
+        if hasattr(self, 'csv_file_path'):
+            cleanup_temp_file(self.csv_file_path)
     
     def test_complete_game_workflow_via_websocket(self):
         """Test complete game from start to finish using WebSocket messages"""
@@ -276,12 +273,10 @@ class TestWebSocketGameIntegration:
         csv_content2 = """round_num,question_num,question,answer
 1,1,Game 2 Question,Game 2 Answer"""
         
-        csv_file2 = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.csv')
-        csv_file2.write(csv_content2)
-        csv_file2.close()
+        csv_file2_path = create_temp_csv(csv_content2)
         
         try:
-            self.gsm.create_game("game2", csv_file2.name, "admin456")
+            self.gsm.create_game("game2", csv_file2_path, "admin456")
             
             # Connect clients to different games
             self.wsm.connect_client("admin1")
@@ -334,7 +329,7 @@ class TestWebSocketGameIntegration:
             assert game1_clients.isdisjoint(game2_clients)
             
         finally:
-            os.unlink(csv_file2.name)
+            cleanup_temp_file(csv_file2_path)
     
     def test_websocket_client_disconnection_cleanup(self):
         """Test client disconnection properly cleans up game state"""

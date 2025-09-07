@@ -1,7 +1,7 @@
 import pytest
-import tempfile
 import os
 from backend.question_manager import QuestionManager, Question
+from .test_helpers import create_temp_csv, cleanup_temp_file
 
 
 class TestQuestion:
@@ -45,11 +45,6 @@ class TestQuestionManager:
     def setup_method(self):
         self.qm = QuestionManager()
     
-    def create_temp_csv(self, content: str) -> str:
-        temp_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.csv')
-        temp_file.write(content)
-        temp_file.close()
-        return temp_file.name
     
     def test_load_valid_csv(self):
         csv_content = """round_num,question_num,question,answer
@@ -57,7 +52,7 @@ class TestQuestionManager:
 1,2,What is the capital of France?,Paris
 2,1,What color is the sky?,Blue"""
         
-        csv_file = self.create_temp_csv(csv_content)
+        csv_file = create_temp_csv(csv_content)
         
         try:
             result = self.qm.load_questions_from_csv("game1", csv_file)
@@ -86,7 +81,7 @@ class TestQuestionManager:
         csv_content = """round,question,answer
 1,What is 2+2?,4"""
         
-        csv_file = self.create_temp_csv(csv_content)
+        csv_file = create_temp_csv(csv_content)
         
         try:
             with pytest.raises(ValueError, match="CSV must contain columns"):
@@ -99,7 +94,7 @@ class TestQuestionManager:
 1,1,,4
 1,2,What is the capital of France?,Paris"""
         
-        csv_file = self.create_temp_csv(csv_content)
+        csv_file = create_temp_csv(csv_content)
         
         try:
             with pytest.raises(ValueError, match="Invalid question at row 2"):
@@ -112,7 +107,7 @@ class TestQuestionManager:
 1,1,What is 2+2?,
 1,2,What is the capital of France?,Paris"""
         
-        csv_file = self.create_temp_csv(csv_content)
+        csv_file = create_temp_csv(csv_content)
         
         try:
             with pytest.raises(ValueError, match="Invalid question at row 2"):
@@ -123,7 +118,7 @@ class TestQuestionManager:
     def test_load_empty_csv(self):
         csv_content = """round_num,question_num,question,answer"""
         
-        csv_file = self.create_temp_csv(csv_content)
+        csv_file = create_temp_csv(csv_content)
         
         try:
             with pytest.raises(ValueError, match="CSV file contains no valid questions"):
@@ -141,7 +136,7 @@ class TestQuestionManager:
 1,2,What is the capital of France?,Paris
 2,1,What color is the sky?,Blue"""
         
-        csv_file = self.create_temp_csv(csv_content)
+        csv_file = create_temp_csv(csv_content)
         
         try:
             self.qm.load_questions_from_csv("game1", csv_file)
@@ -169,7 +164,7 @@ class TestQuestionManager:
 1,2,What is the capital of France?,Paris
 2,1,What color is the sky?,Blue"""
         
-        csv_file = self.create_temp_csv(csv_content)
+        csv_file = create_temp_csv(csv_content)
         
         try:
             self.qm.load_questions_from_csv("game1", csv_file)
@@ -184,7 +179,7 @@ class TestQuestionManager:
 2,1,What is the capital of France?,Paris
 2,2,What is the capital of Spain?,Madrid"""
         
-        csv_file = self.create_temp_csv(csv_content)
+        csv_file = create_temp_csv(csv_content)
         
         try:
             self.qm.load_questions_from_csv("game1", csv_file)
@@ -211,7 +206,7 @@ class TestQuestionManager:
 2,1,What is the capital of France?,Paris
 2,2,What is the capital of Spain?,Madrid"""
         
-        csv_file = self.create_temp_csv(csv_content)
+        csv_file = create_temp_csv(csv_content)
         
         try:
             self.qm.load_questions_from_csv("game1", csv_file)
@@ -230,8 +225,8 @@ class TestQuestionManager:
 1,2,What is the capital of Spain?,Madrid
 2,1,What is the capital of Italy?,Rome"""
         
-        csv_file1 = self.create_temp_csv(csv_content1)
-        csv_file2 = self.create_temp_csv(csv_content2)
+        csv_file1 = create_temp_csv(csv_content1)
+        csv_file2 = create_temp_csv(csv_content2)
         
         try:
             self.qm.load_questions_from_csv("math", csv_file1)

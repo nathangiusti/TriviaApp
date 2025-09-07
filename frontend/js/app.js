@@ -63,6 +63,8 @@ function setupEventHandlers() {
         showAlert('success', 'Game has started!');
         const gameState = gameClient.getGameState();
         if (gameState.isAdmin) {
+            // Transition admin to game control panel
+            showAdminGamePanel();
             updateAdminGameStatus('in_progress');
         } else {
             // Only show game screen when game actually starts
@@ -126,17 +128,28 @@ function setupEventHandlers() {
     
     // Success messages
     gameClient.on('success', (data) => {
+        console.log('Success event received:', data);
         if (data.is_admin) {
             // Admin logged in successfully
             adminPassword = document.getElementById('admin-password').value;
+            console.log('Setting adminPassword to:', adminPassword);
             gameClient.gameState.adminPassword = adminPassword;
             gameClient.saveGameState();
             
-            // Hide login form and show admin panel
+            // Hide login form and show pre-game admin panel
             hideAdminError();
             document.getElementById('admin-login-screen').classList.add('hidden');
             document.getElementById('admin-current-game-id').textContent = data.game_id;
-            showAdminPanel();
+            
+            // Add temporary visual debug message
+            const debugMessage = document.createElement('div');
+            debugMessage.style.cssText = 'position:fixed; top:10px; right:10px; background:green; color:white; padding:10px; z-index:9999; border-radius:5px;';
+            debugMessage.textContent = `Admin logged in! Password: ${adminPassword}`;
+            document.body.appendChild(debugMessage);
+            setTimeout(() => debugMessage.remove(), 5000);
+            
+            showAdminPreGamePanel();
+            console.log('Admin pre-game panel should now be visible');
         } else if (data.message) {
             showAlert('success', data.message);
         }
@@ -150,7 +163,8 @@ function setupEventHandlers() {
     // Error messages
     gameClient.on('error', (data) => {
         // Check if we're on the admin page and show admin-specific error
-        if (document.getElementById('admin-login-form') && !document.getElementById('admin-login-form').classList.contains('hidden')) {
+        const adminLoginScreen = document.getElementById('admin-login-screen');
+        if (adminLoginScreen && !adminLoginScreen.classList.contains('hidden')) {
             showAdminError(data.message);
         } else {
             showAlert('error', data.message);
@@ -207,7 +221,9 @@ function showAdminLogin() {
 
 function showWaitingRoom() {
     hideAllScreens();
-    document.getElementById('waiting-room').classList.remove('hidden');
+    const waitingRoom = document.getElementById('waiting-room');
+    waitingRoom.classList.remove('hidden');
+    waitingRoom.style.display = 'block'; // Override the !important hidden style
     
     // Request current team list
     gameClient.getLeaderboard();
@@ -215,32 +231,89 @@ function showWaitingRoom() {
 
 function showGameScreen() {
     hideAllScreens();
-    document.getElementById('game-screen').classList.remove('hidden');
+    const gameScreen = document.getElementById('game-screen');
+    gameScreen.classList.remove('hidden');
+    gameScreen.style.display = 'block'; // Override the !important hidden style
+    
+    // Show game status and leaderboard initially 
+    // Question will be shown when admin starts a question
+    document.getElementById('game-status').textContent = 'Game in Progress - Waiting for first question';
+    
+    // Hide question-specific elements initially
+    document.getElementById('question-display').classList.add('hidden');
+    document.getElementById('question-closed').classList.add('hidden');
+    document.getElementById('results-display').classList.add('hidden');
+    
+    // Show leaderboard section so players can see the screen is working
+    const leaderboard = document.getElementById('leaderboard');
+    if (leaderboard) {
+        leaderboard.style.display = 'block';
+    }
     
     // Request current leaderboard
     gameClient.getLeaderboard();
 }
 
-function showAdminPanel() {
+function showAdminPreGamePanel() {
     hideAllScreens();
-    const adminPanel = document.getElementById('admin-panel');
+    const adminPanel = document.getElementById('admin-pregame-panel');
     adminPanel.classList.remove('hidden');
-    adminPanel.style.display = ''; // Remove inline style
+    adminPanel.style.display = 'block'; // Override the !important hidden style
+    
+    // Add visual debug indicator
+    console.log('Admin pre-game panel shown');
+    
+    // Ensure start game button is clickable by adding event listener as backup
+    const startGameBtn = document.getElementById('start-game-btn');
+    if (startGameBtn) {
+        console.log('Start game button found, ensuring it\'s clickable');
+        startGameBtn.style.cursor = 'pointer';
+        startGameBtn.style.opacity = '1';
+        startGameBtn.disabled = false;
+        
+        // Add event listener as backup to onclick
+        startGameBtn.removeEventListener('click', startGame); // Remove any existing listener
+        startGameBtn.addEventListener('click', startGame);
+        console.log('Event listener added to start game button');
+    } else {
+        console.error('Start game button not found!');
+    }
+    
+    // Request current game state and team list
+    updateAdminPreGameInfo();
+}
+
+function showAdminGamePanel() {
+    hideAllScreens();
+    const adminPanel = document.getElementById('admin-game-panel');
+    adminPanel.classList.remove('hidden');
+    adminPanel.style.display = 'block'; // Override the !important hidden style
     
     // Request current game state
-    updateAdminInfo();
+    updateAdminGameInfo();
+}
+
+// Legacy function for backward compatibility
+function showAdminPanel() {
+    // Determine which admin panel to show based on game state
+    const gameState = gameClient.getGameState();
+    if (gameState.gameStatus === 'waiting') {
+        showAdminPreGamePanel();
+    } else {
+        showAdminGamePanel();
+    }
 }
 
 function showGameFinished(leaderboard) {
     hideAllScreens();
     const gameFinished = document.getElementById('game-finished');
     gameFinished.classList.remove('hidden');
-    gameFinished.style.display = ''; // Remove inline style
+    gameFinished.style.display = 'block'; // Override the !important hidden style
     updateFinalLeaderboard(leaderboard);
 }
 
 function hideAllScreens() {
-    const screens = ['home-screen', 'waiting-room', 'game-screen', 'admin-panel', 'game-finished', 'admin-login-screen'];
+    const screens = ['home-screen', 'waiting-room', 'game-screen', 'admin-pregame-panel', 'admin-game-panel', 'game-finished', 'admin-login-screen'];
     screens.forEach(screenId => {
         const element = document.getElementById(screenId);
         if (element) {
@@ -292,15 +365,23 @@ async function adminLogin() {
 }
 
 function startGame() {
+    console.log('startGame() called');
+    console.log('adminPassword:', adminPassword);
+    console.log('gameClient:', gameClient);
+    
     if (!adminPassword) {
+        console.error('Admin password not available!');
         showAlert('error', 'Admin password not available');
         return;
     }
     
     try {
+        console.log('Calling gameClient.startGame() with password:', adminPassword);
         gameClient.startGame(adminPassword);
         showAlert('info', 'Starting game...');
+        // Transition to game control panel will happen when game_started event is received
     } catch (error) {
+        console.error('Error in startGame():', error);
         showAlert('error', 'Failed to start game: ' + error.message);
     }
 }
@@ -375,6 +456,12 @@ function nextQuestion() {
     }
 }
 
+function previousQuestion() {
+    // Note: This function would need backend support to implement
+    // For now, just show a message
+    showAlert('info', 'Previous question navigation would need backend implementation');
+}
+
 function leaveGame() {
     if (confirm('Are you sure you want to leave the game?')) {
         gameClient.clearGameState();
@@ -412,7 +499,16 @@ function displayQuestion(data) {
         document.getElementById('admin-question-display').classList.remove('hidden');
         updateAdminControls('question_active');
     } else {
-        // Team view
+        // Team view - ensure we're showing the game screen first
+        const gameScreen = document.getElementById('game-screen');
+        if (gameScreen.classList.contains('hidden')) {
+            showGameScreen();
+        }
+        
+        // Update game status to show question is active
+        document.getElementById('game-status').textContent = 'Question Active - Submit your answer!';
+        
+        // Display the question
         document.getElementById('question-round').textContent = data.round;
         document.getElementById('question-number').textContent = data.question_num;
         document.getElementById('question-text').textContent = data.question;
@@ -485,7 +581,27 @@ function updateTeamsList(teams) {
             adminTeamsList.appendChild(li);
         });
         
-        document.getElementById('admin-team-count').textContent = teams.length;
+        // Update team count in pre-game panel
+        const teamCountElement = document.getElementById('admin-team-count');
+        if (teamCountElement) {
+            teamCountElement.textContent = teams.length;
+        }
+        
+        // Update team count in game control panel
+        const teamCountControlElement = document.getElementById('admin-team-count-control');
+        if (teamCountControlElement) {
+            teamCountControlElement.textContent = teams.length;
+        }
+        
+        // Show/hide no teams message
+        const noTeamsMessage = document.getElementById('no-teams-message');
+        if (noTeamsMessage) {
+            if (teams.length === 0) {
+                noTeamsMessage.style.display = 'block';
+            } else {
+                noTeamsMessage.style.display = 'none';
+            }
+        }
     }
 }
 
@@ -549,12 +665,45 @@ function updateFinalLeaderboard(leaderboard) {
     });
 }
 
-function updateAdminInfo() {
-    // This would be populated from game state or server response
+function updateAdminPreGameInfo() {
+    // Initialize admin team count
+    document.getElementById('admin-team-count').textContent = '0';
+    
+    // Request current team list to populate admin view
+    gameClient.getLeaderboard();
+}
+
+function updateAdminGameInfo() {
+    // Initialize admin team count for game control panel
+    const teamCountElement = document.getElementById('admin-team-count-control');
+    if (teamCountElement) {
+        teamCountElement.textContent = '0';
+    }
+    
+    // Update game ID in control panel
     const gameState = gameClient.getGameState();
+    const gameIdElement = document.getElementById('admin-current-game-id-control');
+    if (gameIdElement && gameState.gameId) {
+        gameIdElement.textContent = gameState.gameId;
+    }
+    
+    // This would be populated from game state or server response
     if (gameState.currentQuestion) {
         document.getElementById('admin-current-round').textContent = gameState.currentQuestion.round;
         document.getElementById('admin-current-question').textContent = gameState.currentQuestion.question_num;
+    }
+    
+    // Request current team list and update controls
+    gameClient.getLeaderboard();
+}
+
+// Legacy function for backward compatibility
+function updateAdminInfo() {
+    const gameState = gameClient.getGameState();
+    if (gameState.gameStatus === 'waiting') {
+        updateAdminPreGameInfo();
+    } else {
+        updateAdminGameInfo();
     }
 }
 
@@ -571,9 +720,10 @@ function updateAdminControls(gameStatus) {
     const startQuestionBtn = document.getElementById('start-question-btn');
     const closeQuestionBtn = document.getElementById('close-question-btn');
     const nextQuestionBtn = document.getElementById('next-question-btn');
+    const previousQuestionBtn = document.getElementById('previous-question-btn');
     
     // Reset all buttons
-    [startGameBtn, startQuestionBtn, closeQuestionBtn, nextQuestionBtn].forEach(btn => {
+    [startGameBtn, startQuestionBtn, closeQuestionBtn, nextQuestionBtn, previousQuestionBtn].forEach(btn => {
         if (btn) btn.disabled = true;
     });
     
@@ -584,6 +734,9 @@ function updateAdminControls(gameStatus) {
         case 'in_progress':
         case 'in-progress':
             if (startQuestionBtn) startQuestionBtn.disabled = false;
+            // Enable previous question button if we're not on the first question
+            // This would need proper implementation based on current question state
+            if (previousQuestionBtn) previousQuestionBtn.disabled = false;
             break;
         case 'question_active':
         case 'question-active':

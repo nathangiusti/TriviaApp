@@ -30,8 +30,8 @@ def start_frontend_server(port=8000):
 
 def start_backend_server():
     """Start Flask/SocketIO backend server"""
-    print("Backend server running at http://localhost:5000/")
-    socketio.run(app, host='0.0.0.0', port=5000, debug=False)
+    print("Backend server running at http://localhost:3001/")
+    socketio.run(app, host='0.0.0.0', port=3001, debug=False)
 
 def main():
     print("🎯 Starting Trivia App Servers")
@@ -51,8 +51,8 @@ def main():
     
     print("\n✅ Servers started successfully!")
     print(f"🌐 Open your browser to: http://localhost:8000/")
-    print(f"🔧 Backend API available at: http://localhost:5000/")
-    print(f"📊 Health check: http://localhost:5000/health")
+    print(f"🔧 Backend API available at: http://localhost:3001/")
+    print(f"📊 Health check: http://localhost:3001/health")
     print("\nPress Ctrl+C to stop servers")
     
     # Optionally open browser

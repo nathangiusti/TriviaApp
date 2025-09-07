@@ -191,11 +191,24 @@ class WebSocketManager:
             self.game_connections[game_id] = set()
         self.game_connections[game_id].add(client_id)
         
-        return [WebSocketMessage(EventType.SUCCESS, {
+        # Prepare response messages
+        messages = []
+        
+        # Success message
+        messages.append(WebSocketMessage(EventType.SUCCESS, {
             "message": "Admin logged in successfully",
             "game_id": game_id,
             "is_admin": True
-        })]
+        }))
+        
+        # Send current team list to admin
+        team_list = [{"team_id": t.team_id, "name": t.name, "score": t.score} 
+                    for t in game.teams.values()]
+        messages.append(WebSocketMessage(EventType.TEAM_LIST_UPDATE, {
+            "teams": team_list
+        }))
+        
+        return messages
     
     def _handle_start_game(self, client_id: str, data: Dict[str, Any]) -> List[WebSocketMessage]:
         """Handle game start by admin"""

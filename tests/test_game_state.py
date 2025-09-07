@@ -1,8 +1,8 @@
 import pytest
-import tempfile
 import os
 from backend.game_state import GameStateManager, GameSession, Team, Answer, GameStatus
 from backend.question_manager import QuestionManager
+from .test_helpers import create_temp_csv, cleanup_temp_file
 
 
 class TestTeam:
@@ -61,11 +61,6 @@ class TestGameStateManager:
         self.qm = QuestionManager()
         self.gsm = GameStateManager(self.qm)
     
-    def create_temp_csv(self, content: str) -> str:
-        temp_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.csv')
-        temp_file.write(content)
-        temp_file.close()
-        return temp_file.name
     
     def create_test_game(self) -> str:
         csv_content = """round_num,question_num,question,answer
@@ -73,7 +68,7 @@ class TestGameStateManager:
 1,2,What is 3+3?,6
 2,1,What is the capital of France?,Paris"""
         
-        csv_file = self.create_temp_csv(csv_content)
+        csv_file = create_temp_csv(csv_content)
         try:
             self.gsm.create_game("test_game", csv_file, "admin123")
             return csv_file
@@ -354,7 +349,7 @@ class TestGameStateManager:
         try:
             csv_content = """round_num,question_num,question,answer
 1,1,What is 2+2?,4"""
-            csv_file = self.create_temp_csv(csv_content)
+            csv_file = create_temp_csv(csv_content)
             self.gsm.create_game("finish_test", csv_file, "admin123")
             
             self.gsm.add_team("finish_test", "Team Alpha")

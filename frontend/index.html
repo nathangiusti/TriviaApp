@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trivia App</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="/frontend/css/styles.css">
 </head>
 <body>
     <div class="container">
@@ -30,7 +30,7 @@
         </div>
         
         <!-- Waiting Room -->
-        <div id="waiting-room" class="card hidden">
+        <div id="waiting-room" class="card hidden" style="display: none !important;">
             <h1>🕐 Waiting Room</h1>
             <div id="game-info">
                 <h3>Game: <span id="current-game-id"></span></h3>
@@ -54,7 +54,7 @@
         </div>
         
         <!-- Game Screen -->
-        <div id="game-screen" class="card hidden">
+        <div id="game-screen" class="card hidden" style="display: none !important;">
             <h1>🎯 Trivia Game</h1>
             
             <!-- Game Status -->
@@ -109,7 +109,7 @@
         
         
         <!-- Game Finished -->
-        <div id="game-finished" class="card hidden">
+        <div id="game-finished" class="card hidden" style="display: none !important;">
             <h1>🎉 Game Complete!</h1>
             <div class="leaderboard">
                 <div class="leaderboard-header">
@@ -151,7 +151,7 @@
     
     <!-- Scripts -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <script src="js/game-client.js"></script>
-    <script src="js/app.js"></script>
+    <script src="/frontend/js/game-client.js"></script>
+    <script src="/frontend/js/app.js"></script>
 </body>
 </html>
