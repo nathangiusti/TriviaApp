@@ -431,3 +431,92 @@ class TestWebSocketGameIntegration:
         
         assert len(admin_msgs) == 1  # Only admin gets answer
         assert len(team_msgs) == 3   # Teams don't get answer
+    
+    def test_admin_start_game_transitions_users_from_waiting_to_game(self):
+        """Test that when admin starts game, team clients receive game_started event to transition UI"""
+        
+        # Setup: Connect admin and team clients
+        self.wsm.connect_client("admin1")
+        self.wsm.connect_client("team1")
+        self.wsm.connect_client("team2")
+        
+        # Admin login
+        admin_login = WebSocketMessage(EventType.ADMIN_LOGIN, {
+            "game_id": "integration_test",
+            "password": "admin123"
+        })
+        responses = self.wsm.handle_message("admin1", admin_login)
+        
+        # Verify admin login successful
+        assert any(r.event_type == EventType.SUCCESS for r in responses)
+        
+        # Teams join the game (equivalent to being in waiting room)
+        team1_join = WebSocketMessage(EventType.JOIN_GAME, {
+            "game_id": "integration_test",
+            "team_name": "Team Alpha"
+        })
+        responses = self.wsm.handle_message("team1", team1_join)
+        
+        # Verify team1 joined successfully
+        assert any(r.event_type == EventType.TEAM_JOINED for r in responses)
+        
+        team2_join = WebSocketMessage(EventType.JOIN_GAME, {
+            "game_id": "integration_test",
+            "team_name": "Team Beta"
+        })
+        responses = self.wsm.handle_message("team2", team2_join)
+        
+        # Verify team2 joined successfully
+        assert any(r.event_type == EventType.TEAM_JOINED for r in responses)
+        
+        # Verify initial game state (equivalent to waiting room state)
+        game = self.gsm.get_game("integration_test")
+        assert game.status == GameStatus.WAITING
+        assert len(game.teams) == 2
+        
+        # Admin clicks "Start Game" button (sends start_game WebSocket event)
+        start_game = WebSocketMessage(EventType.START_GAME, {"password": "admin123"})
+        responses = self.wsm.handle_message("admin1", start_game)
+        
+        # Verify that game_started events are sent to all clients
+        game_started_responses = [r for r in responses if r.event_type == EventType.GAME_STARTED]
+        
+        # Should broadcast to admin + 2 teams = 3 clients total
+        assert len(game_started_responses) == 3
+        
+        # Verify each client gets a targeted message
+        target_clients = {msg.data.get("target_client") for msg in game_started_responses}
+        expected_clients = {"admin1", "team1", "team2"}
+        assert target_clients == expected_clients
+        
+        # Verify game state changed from WAITING to IN_PROGRESS
+        # This represents the backend state change that enables the UI transition
+        assert game.status == GameStatus.IN_PROGRESS
+        
+        # Verify that team clients received the game_started event
+        # In the actual frontend, this event triggers the transition from waiting room to game screen
+        team_game_started_msgs = [
+            msg for msg in game_started_responses 
+            if msg.data.get("target_client") in ["team1", "team2"]
+        ]
+        assert len(team_game_started_msgs) == 2
+        
+        # Each team should receive the same game_started event structure
+        for msg in team_game_started_msgs:
+            assert msg.event_type == EventType.GAME_STARTED
+            assert "target_client" in msg.data
+            # The message should contain information that the frontend uses for the transition
+            # In the frontend, gameClient.on('game_started') handler calls showGameScreen()
+        
+        # Verify admin also receives game_started (transitions admin to game control panel)
+        admin_game_started_msgs = [
+            msg for msg in game_started_responses 
+            if msg.data.get("target_client") == "admin1"
+        ]
+        assert len(admin_game_started_msgs) == 1
+        assert admin_game_started_msgs[0].event_type == EventType.GAME_STARTED
+        
+        # Test that this is the specific event that causes UI transitions:
+        # - Team clients: waiting room (display: none) -> game screen (display: block)  
+        # - Admin client: pre-game panel (display: none) -> game control panel (display: block)
+        # This is validated by the presence of the GAME_STARTED event being broadcast to all participants

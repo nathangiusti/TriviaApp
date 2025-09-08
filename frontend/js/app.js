@@ -75,13 +75,28 @@ function setupEventHandlers() {
     // Question started
     gameClient.on('question_started', (data) => {
         displayQuestion(data);
+        
+        // Clear previous answers for admin when new question starts
+        const answersList = document.getElementById('answers-list');
+        if (answersList) {
+            answersList.innerHTML = '';
+        }
+        
+        // Hide answers panel until answers are submitted
+        const answersPanel = document.getElementById('answers-panel');
+        if (answersPanel) {
+            answersPanel.classList.add('hidden');
+        }
     });
     
     // Answer submitted
     gameClient.on('answer_submitted', (data) => {
         if (data.team_name) {
-            // Admin view - show answer was submitted
+            // Admin view - show answer was submitted with details
             showAlert('info', `${data.team_name} submitted an answer`);
+            
+            // Add answer to the admin answers panel with automatic correctness detection
+            addAnswerToAdminPanel(data);
         } else {
             // Team view - show confirmation
             document.getElementById('answer-form').classList.add('hidden');
@@ -802,6 +817,85 @@ function hideAdminError() {
     const errorDiv = document.getElementById('admin-error');
     if (errorDiv) {
         errorDiv.classList.add('hidden');
+    }
+}
+
+function addAnswerToAdminPanel(data) {
+    // Show the answers panel if it's hidden
+    const answersPanel = document.getElementById('answers-panel');
+    if (answersPanel) {
+        answersPanel.classList.remove('hidden');
+    }
+    
+    // Get the answers list container
+    const answersList = document.getElementById('answers-list');
+    if (!answersList) return;
+    
+    // Create answer item element
+    const answerItem = document.createElement('div');
+    answerItem.className = 'answer-item';
+    answerItem.setAttribute('data-team-id', data.team_id);
+    
+    // Determine correctness styling
+    const correctnessClass = data.is_auto_correct ? 'auto-correct' : 'auto-incorrect';
+    const correctnessIcon = data.is_auto_correct ? '✅' : '❌';
+    const correctnessText = data.is_auto_correct ? 'Auto-detected: Correct' : 'Auto-detected: Incorrect';
+    
+    answerItem.innerHTML = `
+        <div class="answer-header">
+            <strong>${data.team_name}</strong>
+            <span class="answer-time">${new Date(data.submitted_at * 1000).toLocaleTimeString()}</span>
+        </div>
+        <div class="answer-content">
+            <div class="submitted-answer">
+                <strong>Answer:</strong> <span class="answer-text">${data.answer}</span>
+            </div>
+            <div class="correctness-info ${correctnessClass}">
+                ${correctnessIcon} ${correctnessText}
+                <small>(Correct answer: ${data.correct_answer})</small>
+            </div>
+        </div>
+        <div class="grading-controls">
+            <button class="btn btn-sm btn-success" onclick="gradeAnswer('${data.team_id}', true, 1)">✅ Mark Correct</button>
+            <button class="btn btn-sm btn-danger" onclick="gradeAnswer('${data.team_id}', false, 0)">❌ Mark Incorrect</button>
+        </div>
+    `;
+    
+    // Add the answer to the list
+    answersList.appendChild(answerItem);
+}
+
+function gradeAnswer(teamId, isCorrect, points) {
+    // This function will be called when admin clicks grading buttons
+    try {
+        // Get current game state to determine round and question
+        const gameState = gameClient.getGameState();
+        
+        // We need to get the current round and question from the admin panel or game state
+        // For now, we'll try to get it from the DOM elements
+        const currentRound = document.getElementById('admin-current-round')?.textContent || '1';
+        const currentQuestion = document.getElementById('admin-current-question')?.textContent || '1';
+        
+        gameClient.gradeAnswer(teamId, parseInt(currentRound), parseInt(currentQuestion), isCorrect, points);
+        
+        // Update the answer item to show it's been graded
+        const answerItem = document.querySelector(`[data-team-id="${teamId}"]`);
+        if (answerItem) {
+            const gradingControls = answerItem.querySelector('.grading-controls');
+            if (gradingControls) {
+                gradingControls.innerHTML = `
+                    <span class="graded-status ${isCorrect ? 'correct' : 'incorrect'}">
+                        ${isCorrect ? '✅ Marked Correct' : '❌ Marked Incorrect'} 
+                        (${points} point${points !== 1 ? 's' : ''})
+                    </span>
+                `;
+            }
+        }
+        
+        showAlert('success', `Answer graded as ${isCorrect ? 'correct' : 'incorrect'}`);
+    } catch (error) {
+        console.error('Error grading answer:', error);
+        showAlert('error', 'Failed to grade answer: ' + error.message);
     }
 }
 

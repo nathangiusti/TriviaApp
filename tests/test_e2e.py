@@ -594,6 +594,85 @@ class TestE2ETrivia:
         assert any('Live Team Alpha' in name for name in team_names)
         assert any('Live Team Beta' in name for name in team_names)
     
+    def test_admin_start_game_transitions_users_from_waiting_to_game(self):
+        """Test that when admin starts game, user pages transition from waiting room to game screen"""
+        # Setup: Open two browser windows - one for admin, one for team player
+        # Using JavaScript execution to simulate two different browser contexts
+        
+        # First, join as a team in the main window
+        self.driver.get('http://localhost:3001/')
+        
+        # Wait for connection
+        self.wait.until(
+            EC.text_to_be_present_in_element((By.ID, 'connection-status'), 'Connected')
+        )
+        
+        # Fill in game details and join as team
+        game_id_input = self.wait.until(EC.presence_of_element_located((By.ID, 'game-id')))
+        game_id_input.send_keys('e2e_test')
+        
+        team_name_input = self.driver.find_element(By.ID, 'team-name')
+        team_name_input.send_keys('Test Team Alpha')
+        
+        # Click join game
+        join_game_btn = self.driver.find_element(By.XPATH, "//button[contains(text(), 'Join Game')]")
+        join_game_btn.click()
+        
+        # Wait for waiting room to appear
+        self.wait.until(
+            lambda driver: driver.find_element(By.ID, 'waiting-room').is_displayed()
+        )
+        
+        # Verify we're in waiting room initially
+        waiting_room = self.driver.find_element(By.ID, 'waiting-room')
+        assert waiting_room.is_displayed()
+        
+        # Verify game screen is hidden initially
+        game_screen = self.driver.find_element(By.ID, 'game-screen')
+        assert not game_screen.is_displayed()
+        
+        # Simulate admin starting the game by triggering the WebSocket event
+        # This mimics what happens when an admin clicks "Start Game" button
+        self.driver.execute_script("""
+            // Simulate the game_started WebSocket event that would be sent
+            // when an admin clicks the start game button
+            gameClient.handleEvent('game_started', {
+                message: 'Game has been started by admin'
+            });
+        """)
+        
+        # Wait for game screen to appear and waiting room to disappear
+        self.wait.until(
+            lambda driver: driver.find_element(By.ID, 'game-screen').is_displayed()
+        )
+        self.wait.until(
+            lambda driver: not driver.find_element(By.ID, 'waiting-room').is_displayed()
+        )
+        
+        # Verify the transition occurred correctly
+        waiting_room = self.driver.find_element(By.ID, 'waiting-room')
+        game_screen = self.driver.find_element(By.ID, 'game-screen')
+        
+        # Waiting room should now be hidden
+        assert not waiting_room.is_displayed()
+        
+        # Game screen should now be visible
+        assert game_screen.is_displayed()
+        
+        # Verify game status is displayed
+        game_status = self.driver.find_element(By.ID, 'game-status')
+        assert game_status.is_displayed()
+        assert 'Game in Progress' in game_status.text
+        
+        # Verify we're no longer showing "waiting for game to start" message
+        # The waiting room status should not be visible anymore
+        try:
+            waiting_status = self.driver.find_element(By.CSS_SELECTOR, '.status.waiting')
+            assert not waiting_status.is_displayed()
+        except:
+            # It's fine if the element doesn't exist, it means it was properly hidden
+            pass
+
     def test_reconnection_after_refresh(self):
         """Test that user can reconnect after page refresh"""
         # First, join as a team

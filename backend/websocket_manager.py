@@ -292,17 +292,36 @@ class WebSocketManager:
             "submitted_at": answer.submitted_at
         })]
         
-        # Notify admin of answer submission
+        # Notify admin of answer submission with automatic correctness detection
+        game = self.gsm.get_game(game_id)
         for target_client_id in self.game_connections[game_id]:
             target_connection = self.connections[target_client_id]
             if target_connection.is_admin:
-                team = self.gsm.get_game(game_id).teams[connection.team_id]
+                team = game.teams[connection.team_id]
+                
+                # Get correct answer for automatic detection
+                correct_answer = ""
+                is_auto_correct = False
+                try:
+                    question = self.gsm.question_manager.get_question_by_round_and_num(
+                        game_id, game.current_round, game.current_question
+                    )
+                    if question:
+                        correct_answer = question.answer
+                        # Case-insensitive comparison with whitespace trimming
+                        is_auto_correct = answer_text.strip().lower() == correct_answer.strip().lower()
+                except Exception:
+                    # If we can't get the correct answer, default to False
+                    pass
+                
                 messages.append(WebSocketMessage(EventType.ANSWER_SUBMITTED, {
                     "team_name": team.name,
                     "team_id": connection.team_id,
                     "answer": answer_text,
                     "submitted_at": answer.submitted_at,
-                    "target_client": target_client_id
+                    "target_client": target_client_id,
+                    "is_auto_correct": is_auto_correct,
+                    "correct_answer": correct_answer
                 }))
         
         return messages
