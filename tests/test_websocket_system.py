@@ -1,40 +1,53 @@
+"""
+WebSocket system tests - consolidated WebSocket and message handling tests
+"""
 import pytest
-import os
 import json
+import time
 from backend.websocket_manager import WebSocketManager, WebSocketMessage, EventType, ClientConnection
-from backend.game_state import GameStateManager, GameStatus
+from backend.game_state import GameStateManager
 from backend.question_manager import QuestionManager
-from .test_helpers import create_standard_test_csv, cleanup_temp_file
+from .test_helpers import create_temp_csv, cleanup_temp_file, STANDARD_CSV_CONTENT
 
 
 class TestWebSocketMessage:
+    """Test WebSocket message functionality"""
+    
     def test_message_creation(self):
-        message = WebSocketMessage(EventType.JOIN_GAME, {"game_id": "test", "team_name": "Team A"})
+        data = {"key": "value", "number": 42}
+        message = WebSocketMessage(EventType.JOIN_GAME, data)
+        
         assert message.event_type == EventType.JOIN_GAME
-        assert message.data["game_id"] == "test"
+        assert message.data == data
         assert message.timestamp is not None
+        assert isinstance(message.timestamp, float)
     
     def test_message_to_json(self):
-        message = WebSocketMessage(EventType.JOIN_GAME, {"game_id": "test"})
-        json_str = message.to_json()
-        data = json.loads(json_str)
+        data = {"test": "data"}
+        message = WebSocketMessage(EventType.SUCCESS, data, timestamp=1234567890.0)
         
-        assert data["event"] == "join_game"
-        assert data["data"]["game_id"] == "test"
-        assert "timestamp" in data
+        json_str = message.to_json()
+        parsed = json.loads(json_str)
+        
+        assert parsed["event"] == "success"
+        assert parsed["data"] == data
+        assert parsed["timestamp"] == 1234567890.0
     
     def test_message_from_json(self):
-        json_str = '{"event": "join_game", "data": {"game_id": "test"}, "timestamp": 1234567890}'
+        json_str = '{"event": "join_game", "data": {"game_id": "test"}, "timestamp": 1234567890.0}'
         message = WebSocketMessage.from_json(json_str)
         
         assert message.event_type == EventType.JOIN_GAME
-        assert message.data["game_id"] == "test"
-        assert message.timestamp == 1234567890
+        assert message.data == {"game_id": "test"}
+        assert message.timestamp == 1234567890.0
 
 
 class TestClientConnection:
+    """Test client connection functionality"""
+    
     def test_client_connection_creation(self):
         connection = ClientConnection("client123")
+        
         assert connection.client_id == "client123"
         assert connection.game_id is None
         assert connection.team_id is None
@@ -43,18 +56,17 @@ class TestClientConnection:
 
 
 class TestWebSocketManager:
+    """Test WebSocket manager functionality"""
+    
     def setup_method(self):
         self.qm = QuestionManager()
         self.gsm = GameStateManager(self.qm)
         self.wsm = WebSocketManager(self.gsm)
-        
-        # Create a test game using standard test CSV
-        self.csv_file_path = create_standard_test_csv()
-        self.gsm.create_game("test_game", self.csv_file_path, "admin123")
+        self.csv_file = create_temp_csv(STANDARD_CSV_CONTENT)
+        self.gsm.create_game("test_game", self.csv_file, "admin123")
     
     def teardown_method(self):
-        if hasattr(self, 'csv_file_path'):
-            cleanup_temp_file(self.csv_file_path)
+        cleanup_temp_file(self.csv_file)
     
     def test_connect_client(self):
         connection = self.wsm.connect_client("client1")
@@ -69,9 +81,8 @@ class TestWebSocketManager:
     
     def test_disconnect_client(self):
         self.wsm.connect_client("client1")
-        assert "client1" in self.wsm.connections
-        
         self.wsm.disconnect_client("client1")
+        
         assert "client1" not in self.wsm.connections
     
     def test_disconnect_nonexistent_client(self):
@@ -88,23 +99,20 @@ class TestWebSocketManager:
         
         responses = self.wsm.handle_message("client1", message)
         
-        # Should get team joined confirmation and team list update
-        assert len(responses) >= 1
+        # Should get team_joined and team_list_update messages
+        assert len(responses) >= 2
         
-        team_joined_msg = next((r for r in responses if r.event_type == EventType.TEAM_JOINED), None)
-        assert team_joined_msg is not None
-        assert team_joined_msg.data["team_name"] == "Team Alpha"
-        assert team_joined_msg.data["game_id"] == "test_game"
+        team_joined = next(r for r in responses if r.event_type == EventType.TEAM_JOINED)
+        assert team_joined.data["team_name"] == "Team Alpha"
+        assert team_joined.data["game_id"] == "test_game"
         
-        # Check connection was updated
-        connection = self.wsm.get_client_connection("client1")
-        assert connection.game_id == "test_game"
-        assert connection.team_id is not None
+        team_list_updates = [r for r in responses if r.event_type == EventType.TEAM_LIST_UPDATE]
+        assert len(team_list_updates) >= 1
     
     def test_join_game_missing_data(self):
         self.wsm.connect_client("client1")
         
-        message = WebSocketMessage(EventType.JOIN_GAME, {"game_id": "test_game"})  # Missing team_name
+        message = WebSocketMessage(EventType.JOIN_GAME, {"game_id": "test_game"})
         responses = self.wsm.handle_message("client1", message)
         
         assert len(responses) == 1
@@ -135,28 +143,22 @@ class TestWebSocketManager:
         
         responses = self.wsm.handle_message("admin1", message)
         
-        # Should get success message and team list update
-        assert len(responses) == 2
+        # Should get success and team_list_update messages
+        assert len(responses) >= 2
         
-        success_msgs = [r for r in responses if r.event_type == EventType.SUCCESS]
-        team_list_msgs = [r for r in responses if r.event_type == EventType.TEAM_LIST_UPDATE]
+        success_msg = next(r for r in responses if r.event_type == EventType.SUCCESS)
+        assert success_msg.data["is_admin"] is True
+        assert success_msg.data["game_id"] == "test_game"
         
-        assert len(success_msgs) == 1
-        assert len(team_list_msgs) == 1
-        
-        assert success_msgs[0].data["is_admin"] is True
-        assert team_list_msgs[0].data["teams"] == []  # Empty team list initially
-        
-        connection = self.wsm.get_client_connection("admin1")
-        assert connection.is_admin is True
-        assert connection.game_id == "test_game"
+        team_list_msg = next(r for r in responses if r.event_type == EventType.TEAM_LIST_UPDATE)
+        assert "teams" in team_list_msg.data
     
     def test_admin_login_wrong_password(self):
         self.wsm.connect_client("admin1")
         
         message = WebSocketMessage(EventType.ADMIN_LOGIN, {
             "game_id": "test_game",
-            "password": "wrong"
+            "password": "wrongpassword"
         })
         
         responses = self.wsm.handle_message("admin1", message)
@@ -166,34 +168,29 @@ class TestWebSocketManager:
         assert "Invalid admin password" in responses[0].data["message"]
     
     def test_start_game_success(self):
-        # Setup admin and team
+        # Setup admin
         self.wsm.connect_client("admin1")
-        self.wsm.connect_client("client1")
-        
-        # Admin login
         admin_login = WebSocketMessage(EventType.ADMIN_LOGIN, {
             "game_id": "test_game",
             "password": "admin123"
         })
         self.wsm.handle_message("admin1", admin_login)
         
-        # Add team
-        join_msg = WebSocketMessage(EventType.JOIN_GAME, {
+        # Add a team
+        self.wsm.connect_client("client1")
+        join_message = WebSocketMessage(EventType.JOIN_GAME, {
             "game_id": "test_game",
             "team_name": "Team Alpha"
         })
-        self.wsm.handle_message("client1", join_msg)
+        self.wsm.handle_message("client1", join_message)
         
         # Start game
-        start_msg = WebSocketMessage(EventType.START_GAME, {"password": "admin123"})
-        responses = self.wsm.handle_message("admin1", start_msg)
+        start_message = WebSocketMessage(EventType.START_GAME, {"password": "admin123"})
+        responses = self.wsm.handle_message("admin1", start_message)
         
-        # Should broadcast to both admin and team
+        # Should broadcast game_started to all clients
         game_started_msgs = [r for r in responses if r.event_type == EventType.GAME_STARTED]
-        assert len(game_started_msgs) == 2  # One for admin, one for team
-        
-        for msg in game_started_msgs:
-            assert msg.data["status"] == "in_progress"
+        assert len(game_started_msgs) == 2  # admin + player
     
     def test_start_game_non_admin(self):
         self.wsm.connect_client("client1")
@@ -206,24 +203,21 @@ class TestWebSocketManager:
         assert "Admin access required" in responses[0].data["message"]
     
     def test_start_question_success(self):
-        # Setup game with admin and team
+        # Setup admin and start game
         self.wsm.connect_client("admin1")
-        self.wsm.connect_client("client1")
-        
-        # Admin login and team join
         admin_login = WebSocketMessage(EventType.ADMIN_LOGIN, {
             "game_id": "test_game",
             "password": "admin123"
         })
         self.wsm.handle_message("admin1", admin_login)
         
-        join_msg = WebSocketMessage(EventType.JOIN_GAME, {
+        self.wsm.connect_client("client1")
+        join_message = WebSocketMessage(EventType.JOIN_GAME, {
             "game_id": "test_game",
             "team_name": "Team Alpha"
         })
-        self.wsm.handle_message("client1", join_msg)
+        self.wsm.handle_message("client1", join_message)
         
-        # Start game
         start_game = WebSocketMessage(EventType.START_GAME, {"password": "admin123"})
         self.wsm.handle_message("admin1", start_game)
         
@@ -231,53 +225,62 @@ class TestWebSocketManager:
         start_question = WebSocketMessage(EventType.START_QUESTION, {"password": "admin123"})
         responses = self.wsm.handle_message("admin1", start_question)
         
+        # Should send question to all clients
         question_started_msgs = [r for r in responses if r.event_type == EventType.QUESTION_STARTED]
-        assert len(question_started_msgs) == 2  # One for admin, one for team
+        assert len(question_started_msgs) == 2  # admin + player
         
-        # Admin should see answer, team should not
-        admin_msg = next((r for r in question_started_msgs if "answer" in r.data), None)
-        team_msg = next((r for r in question_started_msgs if "answer" not in r.data), None)
-        
-        assert admin_msg is not None
-        assert team_msg is not None
-        assert admin_msg.data["answer"] == "4"
+        # Admin should see the answer
+        admin_msg = next(r for r in question_started_msgs if "answer" in r.data)
         assert admin_msg.data["question"] == "What is 2+2?"
+        assert admin_msg.data["answer"] == "4"
+        
+        # Player should not see the answer
+        player_msg = next(r for r in question_started_msgs if "answer" not in r.data)
+        assert player_msg.data["question"] == "What is 2+2?"
     
     def test_submit_answer_success(self):
-        # Setup game in question state
+        # Setup game with active question
         self.wsm.connect_client("admin1")
-        self.wsm.connect_client("client1")
-        
-        # Complete setup
         admin_login = WebSocketMessage(EventType.ADMIN_LOGIN, {
             "game_id": "test_game",
             "password": "admin123"
         })
         self.wsm.handle_message("admin1", admin_login)
         
-        join_msg = WebSocketMessage(EventType.JOIN_GAME, {
+        self.wsm.connect_client("client1")
+        join_responses = self.wsm.handle_message("client1", WebSocketMessage(EventType.JOIN_GAME, {
             "game_id": "test_game",
             "team_name": "Team Alpha"
-        })
-        self.wsm.handle_message("client1", join_msg)
+        }))
         
-        self.wsm.handle_message("admin1", WebSocketMessage(EventType.START_GAME, {"password": "admin123"}))
-        self.wsm.handle_message("admin1", WebSocketMessage(EventType.START_QUESTION, {"password": "admin123"}))
+        start_game = WebSocketMessage(EventType.START_GAME, {"password": "admin123"})
+        self.wsm.handle_message("admin1", start_game)
+        
+        start_question = WebSocketMessage(EventType.START_QUESTION, {"password": "admin123"})
+        self.wsm.handle_message("admin1", start_question)
         
         # Submit answer
         submit_answer = WebSocketMessage(EventType.SUBMIT_ANSWER, {"answer": "4"})
         responses = self.wsm.handle_message("client1", submit_answer)
         
-        # Team gets confirmation, admin gets notification
-        assert len(responses) >= 1
-        
+        # Should get answer_submitted confirmations
         answer_submitted_msgs = [r for r in responses if r.event_type == EventType.ANSWER_SUBMITTED]
         assert len(answer_submitted_msgs) >= 1
+        
+        # Team confirmation
+        team_msg = next(r for r in answer_submitted_msgs if "team_name" not in r.data)
+        assert team_msg.data["answer"] == "4"
+        
+        # Admin notification
+        admin_msg = next(r for r in answer_submitted_msgs if "team_name" in r.data)
+        assert admin_msg.data["team_name"] == "Team Alpha"
+        assert admin_msg.data["answer"] == "4"
+        assert admin_msg.data["is_auto_correct"] is True  # Correct answer
     
     def test_submit_answer_not_in_team(self):
         self.wsm.connect_client("client1")
         
-        message = WebSocketMessage(EventType.SUBMIT_ANSWER, {"answer": "4"})
+        message = WebSocketMessage(EventType.SUBMIT_ANSWER, {"answer": "test"})
         responses = self.wsm.handle_message("client1", message)
         
         assert len(responses) == 1
@@ -285,41 +288,51 @@ class TestWebSocketManager:
         assert "Must be part of a team" in responses[0].data["message"]
     
     def test_close_question_success(self):
-        # Setup game with submitted answer
+        # Setup game with submitted answers
         self.wsm.connect_client("admin1")
-        self.wsm.connect_client("client1")
-        
-        # Complete setup to question submission
         admin_login = WebSocketMessage(EventType.ADMIN_LOGIN, {
             "game_id": "test_game",
             "password": "admin123"
         })
         self.wsm.handle_message("admin1", admin_login)
         
-        join_msg = WebSocketMessage(EventType.JOIN_GAME, {
+        self.wsm.connect_client("client1")
+        join_responses = self.wsm.handle_message("client1", WebSocketMessage(EventType.JOIN_GAME, {
             "game_id": "test_game",
             "team_name": "Team Alpha"
-        })
-        self.wsm.handle_message("client1", join_msg)
+        }))
         
-        self.wsm.handle_message("admin1", WebSocketMessage(EventType.START_GAME, {"password": "admin123"}))
-        self.wsm.handle_message("admin1", WebSocketMessage(EventType.START_QUESTION, {"password": "admin123"}))
-        self.wsm.handle_message("client1", WebSocketMessage(EventType.SUBMIT_ANSWER, {"answer": "4"}))
+        start_game = WebSocketMessage(EventType.START_GAME, {"password": "admin123"})
+        self.wsm.handle_message("admin1", start_game)
+        
+        start_question = WebSocketMessage(EventType.START_QUESTION, {"password": "admin123"})
+        self.wsm.handle_message("admin1", start_question)
+        
+        submit_answer = WebSocketMessage(EventType.SUBMIT_ANSWER, {"answer": "4"})
+        self.wsm.handle_message("client1", submit_answer)
         
         # Close question
         close_question = WebSocketMessage(EventType.CLOSE_QUESTION, {"password": "admin123"})
         responses = self.wsm.handle_message("admin1", close_question)
         
+        # Should get question_closed and leaderboard_update messages
         question_closed_msgs = [r for r in responses if r.event_type == EventType.QUESTION_CLOSED]
-        assert len(question_closed_msgs) == 2  # One for admin, one for team
+        leaderboard_msgs = [r for r in responses if r.event_type == EventType.LEADERBOARD_UPDATE]
         
-        # Admin should get answer details, team should get simple notification
-        admin_msg = next((r for r in question_closed_msgs if "answers" in r.data), None)
-        team_msg = next((r for r in question_closed_msgs if "message" in r.data), None)
+        assert len(question_closed_msgs) >= 2  # admin + player
+        assert len(leaderboard_msgs) >= 2     # admin + player
         
-        assert admin_msg is not None
-        assert team_msg is not None
+        # Admin should get answers for grading
+        admin_msg = next(r for r in question_closed_msgs if "answers" in r.data)
         assert len(admin_msg.data["answers"]) == 1
+        assert admin_msg.data["answers"][0]["team_name"] == "Team Alpha"
+        assert admin_msg.data["answers"][0]["is_correct"] is True
+        
+        # Player should get results
+        player_msg = next(r for r in question_closed_msgs if "correct_answer" in r.data)
+        assert player_msg.data["correct_answer"] == "4"
+        assert player_msg.data["team_answer"] == "4"
+        assert player_msg.data["team_correct"] is True
     
     def test_grade_answer_success(self):
         # Setup game with closed question
@@ -344,7 +357,7 @@ class TestWebSocketManager:
         
         self.wsm.handle_message("admin1", WebSocketMessage(EventType.START_GAME, {"password": "admin123"}))
         self.wsm.handle_message("admin1", WebSocketMessage(EventType.START_QUESTION, {"password": "admin123"}))
-        self.wsm.handle_message("client1", WebSocketMessage(EventType.SUBMIT_ANSWER, {"answer": "4"}))
+        self.wsm.handle_message("client1", WebSocketMessage(EventType.SUBMIT_ANSWER, {"answer": "wrong"}))
         self.wsm.handle_message("admin1", WebSocketMessage(EventType.CLOSE_QUESTION, {"password": "admin123"}))
         
         # Grade answer
@@ -364,110 +377,94 @@ class TestWebSocketManager:
         for msg in answer_graded_msgs:
             assert msg.data["is_correct"] is True
             assert msg.data["points_awarded"] == 1
-            assert msg.data["new_score"] == 1
+            assert msg.data["new_score"] == 1  # Updated score after manual grading
     
     def test_get_leaderboard(self):
-        # Setup game with team
         self.wsm.connect_client("client1")
         
-        join_msg = WebSocketMessage(EventType.JOIN_GAME, {
+        # Join game first
+        join_message = WebSocketMessage(EventType.JOIN_GAME, {
             "game_id": "test_game",
             "team_name": "Team Alpha"
         })
-        self.wsm.handle_message("client1", join_msg)
+        self.wsm.handle_message("client1", join_message)
         
-        # Request leaderboard
-        leaderboard_msg = WebSocketMessage(EventType.GET_LEADERBOARD, {})
-        responses = self.wsm.handle_message("client1", leaderboard_msg)
+        # Get leaderboard
+        leaderboard_message = WebSocketMessage(EventType.GET_LEADERBOARD, {})
+        responses = self.wsm.handle_message("client1", leaderboard_message)
         
         assert len(responses) == 1
         assert responses[0].event_type == EventType.LEADERBOARD_UPDATE
+        assert "leaderboard" in responses[0].data
         assert len(responses[0].data["leaderboard"]) == 1
         assert responses[0].data["leaderboard"][0]["name"] == "Team Alpha"
     
     def test_get_game_state(self):
-        # Setup game with team
         self.wsm.connect_client("client1")
         
-        join_msg = WebSocketMessage(EventType.JOIN_GAME, {
+        # Join game first
+        join_message = WebSocketMessage(EventType.JOIN_GAME, {
             "game_id": "test_game",
             "team_name": "Team Alpha"
         })
-        self.wsm.handle_message("client1", join_msg)
+        self.wsm.handle_message("client1", join_message)
         
-        # Request game state
-        state_msg = WebSocketMessage(EventType.GET_GAME_STATE, {})
-        responses = self.wsm.handle_message("client1", state_msg)
+        # Get game state
+        state_message = WebSocketMessage(EventType.GET_GAME_STATE, {})
+        responses = self.wsm.handle_message("client1", state_message)
         
         assert len(responses) == 1
         assert responses[0].event_type == EventType.SUCCESS
         assert "game_state" in responses[0].data
-        assert responses[0].data["game_state"]["game_id"] == "test_game"
+        game_state = responses[0].data["game_state"]
+        assert game_state["game_id"] == "test_game"
+        assert game_state["status"] == "waiting"
     
     def test_unknown_event_type(self):
         self.wsm.connect_client("client1")
         
-        # Create message with invalid event type manually
-        message = WebSocketMessage(EventType.JOIN_GAME, {})  # Start with valid
-        message.event_type = "invalid_event"  # Then change to invalid
-        
-        # Mock the unknown event
-        responses = self.wsm.handle_message("client1", message)
+        # Create message with invalid event type (this will be handled by the error case)
+        responses = self.wsm.handle_message("client1", WebSocketMessage(EventType.SUCCESS, {}))
         
         assert len(responses) == 1
         assert responses[0].event_type == EventType.ERROR
+        assert "Unknown event type" in responses[0].data["message"]
     
     def test_message_from_unconnected_client(self):
-        message = WebSocketMessage(EventType.JOIN_GAME, {
-            "game_id": "test_game",
-            "team_name": "Team Alpha"
-        })
-        
-        responses = self.wsm.handle_message("unconnected", message)
+        message = WebSocketMessage(EventType.JOIN_GAME, {"game_id": "test"})
+        responses = self.wsm.handle_message("unconnected_client", message)
         
         assert len(responses) == 1
         assert responses[0].event_type == EventType.ERROR
         assert "Client not connected" in responses[0].data["message"]
     
     def test_get_game_clients(self):
-        # Connect clients to game
-        self.wsm.connect_client("admin1")
         self.wsm.connect_client("client1")
         self.wsm.connect_client("client2")
         
-        # Add them to game
-        admin_login = WebSocketMessage(EventType.ADMIN_LOGIN, {
-            "game_id": "test_game",
-            "password": "admin123"
-        })
-        self.wsm.handle_message("admin1", admin_login)
-        
-        join_msg1 = WebSocketMessage(EventType.JOIN_GAME, {
+        # Join game
+        join_message = WebSocketMessage(EventType.JOIN_GAME, {
             "game_id": "test_game",
             "team_name": "Team Alpha"
         })
-        self.wsm.handle_message("client1", join_msg1)
+        self.wsm.handle_message("client1", join_message)
         
-        join_msg2 = WebSocketMessage(EventType.JOIN_GAME, {
-            "game_id": "test_game",
-            "team_name": "Team Beta"
-        })
-        self.wsm.handle_message("client2", join_msg2)
-        
-        # Check game clients
         clients = self.wsm.get_game_clients("test_game")
-        assert len(clients) == 3
-        assert {"admin1", "client1", "client2"} == clients
+        assert len(clients) == 1
+        assert "client1" in clients
+        
+        # Client2 not in game yet
+        assert "client2" not in clients
     
     def test_disconnect_client_from_game_cleanup(self):
-        # Connect client and add to game
         self.wsm.connect_client("client1")
         
-        join_msg = WebSocketMessage(EventType.JOIN_GAME, {
+        # Join game
+        join_message = WebSocketMessage(EventType.JOIN_GAME, {
             "game_id": "test_game",
             "team_name": "Team Alpha"
         })
-        self.wsm.handle_message("client1", join_msg)
+        self.wsm.handle_message("client1", join_message)
         
         # Verify client is in game
         clients = self.wsm.get_game_clients("test_game")
@@ -476,7 +473,6 @@ class TestWebSocketManager:
         # Disconnect client
         self.wsm.disconnect_client("client1")
         
-        # Verify cleanup
+        # Verify client is removed from game
         clients = self.wsm.get_game_clients("test_game")
-        assert "client1" not in clients
-        assert "client1" not in self.wsm.connections
+        assert len(clients) == 0

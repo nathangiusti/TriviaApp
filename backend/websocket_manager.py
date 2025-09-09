@@ -337,15 +337,25 @@ class WebSocketManager:
         
         answers = self.gsm.close_question(game_id, password)
         
+        # Get current question and updated game state
+        game = self.gsm.get_game(game_id)
+        current_question = self.gsm.get_current_question(game_id)
+        
+        # Create leaderboard with updated scores
+        leaderboard = [
+            {"name": team.name, "score": team.score}
+            for team in game.teams.values()
+        ]
+        leaderboard.sort(key=lambda x: x["score"], reverse=True)
+        
         # Broadcast to all clients
         messages = []
-        game = self.gsm.get_game(game_id)
         
         for target_client_id in self.game_connections[game_id]:
             target_connection = self.connections[target_client_id]
             
             if target_connection.is_admin:
-                # Admin gets all answers for grading
+                # Admin gets all answers for grading (existing behavior)
                 answer_data = []
                 for answer in answers:
                     team = game.teams[answer.team_id]
@@ -353,7 +363,9 @@ class WebSocketManager:
                         "team_id": answer.team_id,
                         "team_name": team.name,
                         "answer": answer.answer_text,
-                        "submitted_at": answer.submitted_at
+                        "submitted_at": answer.submitted_at,
+                        "is_correct": answer.is_correct,
+                        "points_awarded": answer.points_awarded
                     })
                 
                 messages.append(WebSocketMessage(EventType.QUESTION_CLOSED, {
@@ -361,11 +373,32 @@ class WebSocketManager:
                     "target_client": target_client_id
                 }))
             else:
-                # Teams just get notification
+                # Teams get question results and updated scores
+                team_answer = None
+                team_correct = None
+                
+                # Find this team's answer
+                for answer in answers:
+                    if answer.team_id == target_connection.team_id:
+                        team_answer = answer.answer_text
+                        team_correct = answer.is_correct
+                        break
+                
                 messages.append(WebSocketMessage(EventType.QUESTION_CLOSED, {
-                    "message": "Question closed, awaiting results",
+                    "correct_answer": current_question.answer if current_question else "N/A",
+                    "team_answer": team_answer,
+                    "team_correct": team_correct,
+                    "leaderboard": leaderboard,
+                    "message": "Question results",
                     "target_client": target_client_id
                 }))
+        
+        # Send leaderboard update to all clients
+        for target_client_id in self.game_connections[game_id]:
+            messages.append(WebSocketMessage(EventType.LEADERBOARD_UPDATE, {
+                "leaderboard": leaderboard,
+                "target_client": target_client_id
+            }))
         
         return messages
     

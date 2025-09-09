@@ -272,6 +272,13 @@ function showGameScreen() {
 function showAdminPreGamePanel() {
     hideAllScreens();
     const adminPanel = document.getElementById('admin-pregame-panel');
+    
+    // Check if admin panel exists (only on admin.html)
+    if (!adminPanel) {
+        console.warn('showAdminPreGamePanel called but admin-pregame-panel element not found. Likely on player page.');
+        return;
+    }
+    
     adminPanel.classList.remove('hidden');
     adminPanel.style.display = 'block'; // Override the !important hidden style
     
@@ -296,11 +303,26 @@ function showAdminPreGamePanel() {
     
     // Request current game state and team list
     updateAdminPreGameInfo();
+    
+    // Force enable start game button after any potential admin controls update
+    setTimeout(() => {
+        if (startGameBtn) {
+            startGameBtn.disabled = false;
+            console.log('Start game button force-enabled after admin info update');
+        }
+    }, 100);
 }
 
 function showAdminGamePanel() {
     hideAllScreens();
     const adminPanel = document.getElementById('admin-game-panel');
+    
+    // Check if admin panel exists (only on admin.html)
+    if (!adminPanel) {
+        console.warn('showAdminGamePanel called but admin-game-panel element not found. Likely on player page.');
+        return;
+    }
+    
     adminPanel.classList.remove('hidden');
     adminPanel.style.display = 'block'; // Override the !important hidden style
     
@@ -506,37 +528,66 @@ function displayQuestion(data) {
     const gameState = gameClient.getGameState();
     
     if (gameState.isAdmin) {
-        // Admin view
-        document.getElementById('admin-question-round').textContent = data.round;
-        document.getElementById('admin-question-number').textContent = data.question_num;
-        document.getElementById('admin-question-text').textContent = data.question;
-        document.getElementById('admin-correct-answer').textContent = data.answer || 'N/A';
-        document.getElementById('admin-question-display').classList.remove('hidden');
-        updateAdminControls('question_active');
-    } else {
+        // Admin view - check if admin elements exist (only on admin.html)
+        const adminQuestionRound = document.getElementById('admin-question-round');
+        const adminQuestionNumber = document.getElementById('admin-question-number');
+        const adminQuestionText = document.getElementById('admin-question-text');
+        const adminCorrectAnswer = document.getElementById('admin-correct-answer');
+        const adminQuestionDisplay = document.getElementById('admin-question-display');
+        
+        if (!adminQuestionRound || !adminQuestionNumber || !adminQuestionText || !adminCorrectAnswer || !adminQuestionDisplay) {
+            console.warn('displayQuestion called for admin but admin elements not found. Likely on player page. Falling back to player view.');
+            // Fall through to player view
+        } else {
+            // Admin elements exist, populate them
+            adminQuestionRound.textContent = data.round;
+            adminQuestionNumber.textContent = data.question_num;
+            adminQuestionText.textContent = data.question;
+            adminCorrectAnswer.textContent = data.answer || 'N/A';
+            adminQuestionDisplay.classList.remove('hidden');
+            updateAdminControls('question_active');
+            return; // Exit early for admin view
+        }
+    }
+    
+    // Player view (or fallback from admin view)
+    {
         // Team view - ensure we're showing the game screen first
         const gameScreen = document.getElementById('game-screen');
-        if (gameScreen.classList.contains('hidden')) {
+        if (gameScreen && gameScreen.classList.contains('hidden')) {
             showGameScreen();
         }
         
         // Update game status to show question is active
-        document.getElementById('game-status').textContent = 'Question Active - Submit your answer!';
+        const gameStatus = document.getElementById('game-status');
+        if (gameStatus) {
+            gameStatus.textContent = 'Question Active - Submit your answer!';
+        }
         
-        // Display the question
-        document.getElementById('question-round').textContent = data.round;
-        document.getElementById('question-number').textContent = data.question_num;
-        document.getElementById('question-text').textContent = data.question;
+        // Display the question with null checks
+        const questionRound = document.getElementById('question-round');
+        const questionNumber = document.getElementById('question-number');
+        const questionText = document.getElementById('question-text');
+        const answerInput = document.getElementById('answer-input');
+        const submitBtn = document.getElementById('submit-btn');
+        const questionDisplay = document.getElementById('question-display');
+        const answerForm = document.getElementById('answer-form');
+        const answerSubmitted = document.getElementById('answer-submitted');
+        const questionClosed = document.getElementById('question-closed');
+        
+        if (questionRound) questionRound.textContent = data.round;
+        if (questionNumber) questionNumber.textContent = data.question_num;
+        if (questionText) questionText.textContent = data.question;
         
         // Reset answer form
-        document.getElementById('answer-input').value = '';
-        document.getElementById('submit-btn').disabled = false;
+        if (answerInput) answerInput.value = '';
+        if (submitBtn) submitBtn.disabled = false;
         
         // Show question and answer form
-        document.getElementById('question-display').classList.remove('hidden');
-        document.getElementById('answer-form').classList.remove('hidden');
-        document.getElementById('answer-submitted').classList.add('hidden');
-        document.getElementById('question-closed').classList.add('hidden');
+        if (questionDisplay) questionDisplay.classList.remove('hidden');
+        if (answerForm) answerForm.classList.remove('hidden');
+        if (answerSubmitted) answerSubmitted.classList.add('hidden');
+        if (questionClosed) questionClosed.classList.add('hidden');
     }
 }
 
@@ -724,6 +775,13 @@ function updateAdminInfo() {
 
 function updateAdminGameStatus(status) {
     const statusElement = document.getElementById('admin-game-status');
+    
+    // Check if admin status element exists (only on admin.html)
+    if (!statusElement) {
+        console.warn('updateAdminGameStatus called but admin-game-status element not found. Likely on player page.');
+        return;
+    }
+    
     statusElement.textContent = status.charAt(0).toUpperCase() + status.slice(1);
     statusElement.className = `status ${status.replace('_', '-')}`;
     
@@ -737,10 +795,19 @@ function updateAdminControls(gameStatus) {
     const nextQuestionBtn = document.getElementById('next-question-btn');
     const previousQuestionBtn = document.getElementById('previous-question-btn');
     
-    // Reset all buttons
-    [startGameBtn, startQuestionBtn, closeQuestionBtn, nextQuestionBtn, previousQuestionBtn].forEach(btn => {
+    // Don't disable start game button if we're in pre-game panel
+    const preGamePanel = document.getElementById('admin-pregame-panel');
+    const isPreGamePanelVisible = preGamePanel && !preGamePanel.classList.contains('hidden') && preGamePanel.style.display !== 'none';
+    
+    // Reset all buttons except start game button if we're in pre-game
+    [startQuestionBtn, closeQuestionBtn, nextQuestionBtn, previousQuestionBtn].forEach(btn => {
         if (btn) btn.disabled = true;
     });
+    
+    // Only disable start game button if we're not in pre-game panel
+    if (startGameBtn && !isPreGamePanelVisible) {
+        startGameBtn.disabled = true;
+    }
     
     switch (gameStatus) {
         case 'waiting':
@@ -761,6 +828,11 @@ function updateAdminControls(gameStatus) {
         case 'question-closed':
             if (nextQuestionBtn) nextQuestionBtn.disabled = false;
             break;
+    }
+    
+    // Ensure start game button stays enabled in pre-game panel
+    if (startGameBtn && isPreGamePanelVisible) {
+        startGameBtn.disabled = false;
     }
 }
 

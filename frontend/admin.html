@@ -22,14 +22,14 @@
                 
                 <div class="form-group">
                     <label for="admin-game-id">Game ID:</label>
-                    <input type="text" id="admin-game-id" placeholder="Enter game ID" required onkeypress="if(event.key==='Enter') adminLogin()">
+                    <input type="text" id="admin-game-id" placeholder="Enter game ID" required>
                 </div>
                 <div class="form-group">
                     <label for="admin-password">Admin Password:</label>
-                    <input type="password" id="admin-password" placeholder="Enter admin password" required onkeypress="if(event.key==='Enter') adminLogin()">
+                    <input type="password" id="admin-password" placeholder="Enter admin password" required>
                 </div>
                 <div class="btn-group">
-                    <button type="button" class="btn btn-primary" onclick="adminLogin()">Login</button>
+                    <button type="button" class="btn btn-primary" id="admin-login-btn">Login</button>
                 </div>
             </div>
         </div>
@@ -55,8 +55,8 @@
             </div>
             
             <div class="btn-group">
-                <button class="btn btn-success" onclick="startGame()" id="start-game-btn">Start Game</button>
-                <button class="btn btn-danger" onclick="leaveGame()">Exit Admin</button>
+                <button class="btn btn-success" id="start-game-btn">Start Game</button>
+                <button class="btn btn-danger" id="exit-admin-btn">Exit Admin</button>
             </div>
         </div>
         
@@ -80,10 +80,10 @@
             <div class="admin-panel">
                 <h3>Question Controls</h3>
                 <div class="admin-controls">
-                    <button class="btn btn-primary" onclick="startQuestion()" id="start-question-btn">Open Question</button>
-                    <button class="btn btn-warning" onclick="closeQuestion()" id="close-question-btn" disabled>Close Question</button>
-                    <button class="btn btn-secondary" onclick="previousQuestion()" id="previous-question-btn" disabled>← Previous Question</button>
-                    <button class="btn btn-primary" onclick="nextQuestion()" id="next-question-btn" disabled>Next Question →</button>
+                    <button class="btn btn-primary" id="start-question-btn">Open Question</button>
+                    <button class="btn btn-warning" id="close-question-btn" disabled>Close Question</button>
+                    <button class="btn btn-secondary" id="previous-question-btn" disabled>← Previous Question</button>
+                    <button class="btn btn-primary" id="next-question-btn" disabled>Next Question →</button>
                 </div>
             </div>
             
@@ -101,16 +101,19 @@
                 </div>
             </div>
             
-            <!-- Submitted Answers -->
-            <div id="answers-panel" class="admin-panel hidden">
-                <h3>Submitted Answers</h3>
-                <div id="answers-list" class="answers-list">
-                    <!-- Submitted answers will be populated here -->
+            <!-- Teams and Answers for Grading -->
+            <div id="grading-panel" class="admin-panel hidden">
+                <h3>Teams & Answer Grading</h3>
+                <div class="grading-instructions">
+                    <p>✅ Green answers are automatically correct. ❓ Other answers need manual grading.</p>
+                </div>
+                <div id="teams-grading-list" class="teams-grading-list">
+                    <!-- Teams with their answers will be populated here -->
                 </div>
             </div>
             
             <div class="btn-group">
-                <button class="btn btn-danger" onclick="leaveGame()">Exit Admin</button>
+                <button class="btn btn-danger" id="exit-admin-game-btn">Exit Admin</button>
             </div>
         </div>
         
@@ -126,7 +129,7 @@
                 </ul>
             </div>
             <div class="btn-group">
-                <button class="btn btn-primary" onclick="startNewGame()">New Game</button>
+                <button class="btn btn-primary" id="start-new-game-btn">New Game</button>
             </div>
         </div>
         
@@ -139,6 +142,6 @@
     <!-- Scripts -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="/frontend/js/game-client.js"></script>
-    <script src="/frontend/js/app.js"></script>
+    <script src="/frontend/js/admin-app.js"></script>
 </body>
 </html>

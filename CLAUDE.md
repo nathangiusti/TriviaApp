@@ -27,10 +27,11 @@ python -m pytest tests/ -v
 # Run core tests (excluding frontend/E2E)
 python -m pytest tests/ -v --ignore=tests/test_frontend_component_visibility.py --ignore=tests/test_frontend_workflow.py --ignore=tests/test_e2e.py
 
-# Run specific test files
-python -m pytest tests/test_game_state.py -v
-python -m pytest tests/test_websocket_manager.py -v
-python -m pytest tests/test_integration.py -v
+# Run specific test categories
+python -m pytest tests/test_core_game_logic.py -v         # Game logic & data models
+python -m pytest tests/test_websocket_system.py -v       # WebSocket communication
+python -m pytest tests/test_complete_workflows.py -v     # End-to-end workflows
+python -m pytest tests/test_routes.py -v                 # Flask routes
 
 # Run single test
 python -m pytest tests/test_e2e.py::TestE2ETrivia::test_admin_login_workflow -v -s
@@ -86,16 +87,56 @@ Each stage has specific WebSocket events and UI transitions that are automatical
 - **`question_manager.py`**: CSV question loading and retrieval
 
 #### Frontend (`frontend/`)
-- **`js/game-client.js`**: WebSocket client, connection management, state persistence
-- **`js/app.js`**: UI logic, DOM manipulation, progressive screen transitions
+- **`js/game-client.js`**: Shared WebSocket client, connection management, state persistence
+- **`js/admin-app.js`**: Admin-specific UI logic, panel management, game controls (used by admin.html)
+- **`js/player-app.js`**: Player-specific UI logic, game joining, question answering (used by index.html)
 - **CSS**: Uses `!important` for initial hiding, JavaScript overrides for display
 
-#### Testing (`tests/`)
-- **Unit Tests**: Individual component testing
-- **Integration Tests**: Multi-component workflows
-- **WebSocket Tests**: Real-time communication testing  
-- **E2E Tests**: Full user workflows with Selenium
-- **Frontend Tests**: UI component visibility and transitions
+**Architecture Separation**: Frontend logic is cleanly separated by context:
+- **Admin Context** (`admin.html` + `admin-app.js`): Admin login, game management, question control, answer grading
+- **Player Context** (`index.html` + `player-app.js`): Team joining, question answering, leaderboard viewing
+- **Shared Logic** (`game-client.js`): WebSocket communication, connection management, state persistence
+
+#### Testing (`tests/`) - Organized by Functionality
+
+**Core Test Categories:**
+- **`test_core_game_logic.py`**: Unit tests for game data models (Team, Answer, GameSession, Question, QuestionManager, GameStateManager)
+- **`test_websocket_system.py`**: WebSocket communication, message handling, client connections
+- **`test_complete_workflows.py`**: End-to-end integration tests, complete game workflows, multi-game isolation
+- **`test_routes.py`**: Flask route testing, API endpoints, HTTP responses
+
+**Specialized Tests:**
+- **`test_e2e.py`**: Browser automation tests with Selenium (requires ChromeDriver)
+- **`test_frontend_component_visibility.py`**: UI element visibility and progressive disclosure
+- **`test_frontend_workflow.py`**: Frontend JavaScript workflow testing
+
+**Test Organization:**
+- **74 consolidated tests** covering all core functionality (reduced from 16 scattered test files)
+- **Eliminated duplicate tests** while maintaining comprehensive coverage
+- **Clear separation** between unit, integration, and end-to-end testing
+- **Helper utilities** in `test_helpers.py` for consistent test setup and reusable CSV content
+- **Improved maintainability** with logical grouping by functionality rather than scattered files
+
+## Architecture Benefits
+
+### Clean Context Separation
+- **No Context Confusion**: Pages always know their role (admin vs player)
+- **No Null Reference Errors**: Admin functions only exist on admin pages, player functions only on player pages  
+- **Better Security**: No accidental admin functionality exposure on player pages
+- **Easier Debugging**: Issues are isolated to specific contexts
+- **Maintainable Code**: Single responsibility principle applied to frontend architecture
+
+### File Organization
+```
+frontend/
+├── index.html          # Player interface
+├── admin.html          # Admin interface  
+├── js/
+│   ├── game-client.js  # Shared WebSocket logic
+│   ├── player-app.js   # Player-specific logic
+│   └── admin-app.js    # Admin-specific logic
+└── css/styles.css      # Shared styling
+```
 
 ## Key Implementation Details
 
@@ -112,8 +153,13 @@ Admin login sends two responses:
 
 This ensures admins see existing teams immediately upon login. Tests expect both responses.
 
-### CSS Display Pattern
+### CSS Display Pattern & Context Management
 Components use `style="display: none !important;"` for initial hiding. JavaScript functions override with `element.style.display = 'block'` for proper progressive disclosure.
+
+**Context-Aware Functions**: 
+- **Admin functions** (`admin-app.js`) only access admin DOM elements, with proper error handling if elements don't exist
+- **Player functions** (`player-app.js`) only access player DOM elements  
+- **Shared functions** (`game-client.js`) handle WebSocket communication and state management for both contexts
 
 ### Connection Management
 - **Socket Mapping**: `socket_to_client` and `client_to_socket` dictionaries
@@ -143,13 +189,29 @@ message = WebSocketMessage(EventType.JOIN_GAME, {
 responses = websocket_manager.handle_message(client_id, message)
 ```
 
-### UI State Transitions
+### UI State Transitions (Context-Specific)
+
+**Player App Pattern:**
 ```javascript
 function showWaitingRoom() {
-    hideAllScreens();
+    hideAllScreens();  // Only hides player screens
     const waitingRoom = document.getElementById('waiting-room');
-    waitingRoom.style.display = 'block'; // Override !important CSS
-    waitingRoom.classList.remove('hidden');
+    if (waitingRoom) {
+        waitingRoom.style.display = 'block'; // Override !important CSS
+        waitingRoom.classList.remove('hidden');
+    }
+}
+```
+
+**Admin App Pattern:**
+```javascript
+function showAdminPreGamePanel() {
+    hideAllScreens();  // Only hides admin screens
+    const adminPanel = document.getElementById('admin-pregame-panel');
+    if (adminPanel) {  // Context-aware null check
+        adminPanel.style.display = 'block';
+        adminPanel.classList.remove('hidden');
+    }
 }
 ```
 

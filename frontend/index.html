@@ -24,7 +24,7 @@
                     <input type="text" id="team-name" placeholder="Enter your team name" required>
                 </div>
                 <div class="btn-group">
-                    <button class="btn btn-primary" onclick="joinGame()">Join Game</button>
+                    <button class="btn btn-primary" id="join-game-btn">Join Game</button>
                 </div>
             </div>
         </div>
@@ -49,7 +49,7 @@
             </div>
             
             <div class="btn-group">
-                <button class="btn btn-danger" onclick="leaveGame()">Leave Game</button>
+                <button class="btn btn-danger" id="leave-game-btn">Leave Game</button>
             </div>
         </div>
         
@@ -72,7 +72,7 @@
                     <div class="form-group">
                         <input type="text" id="answer-input" class="answer-input" placeholder="Enter your answer..." required>
                     </div>
-                    <button class="btn btn-primary" onclick="submitAnswer()" id="submit-btn">Submit Answer</button>
+                    <button class="btn btn-primary" id="submit-btn">Submit Answer</button>
                 </div>
                 
                 <!-- Answer Submitted (for teams) -->
@@ -93,7 +93,9 @@
             <!-- Results Display -->
             <div id="results-display" class="hidden">
                 <h3>Question Results</h3>
-                <div id="results-content"></div>
+                <div id="results-content">
+                    <!-- This content will be populated by JavaScript -->
+                </div>
             </div>
             
             <!-- Current Leaderboard -->
@@ -120,7 +122,7 @@
                 </ul>
             </div>
             <div class="btn-group">
-                <button class="btn btn-primary" onclick="startNewGame()">New Game</button>
+                <button class="btn btn-primary" id="start-new-game-player-btn">New Game</button>
             </div>
         </div>
         
@@ -130,8 +132,8 @@
         </div>
     </div>
     
-    <!-- Rejoin Modal -->
-    <div id="rejoin-modal" class="modal">
+    <!-- Reconnect Prompt -->
+    <div id="reconnect-prompt" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Reconnect to Game</h3>
@@ -143,8 +145,8 @@
                 <input type="text" id="rejoin-team-name" placeholder="Enter your team name">
             </div>
             <div class="btn-group">
-                <button class="btn btn-primary" onclick="gameClient.confirmRejoin()">Rejoin Game</button>
-                <button class="btn btn-secondary" onclick="gameClient.hideRejoinPrompt(); gameClient.clearGameState(); showHome();">Start Fresh</button>
+                <button class="btn btn-primary" id="rejoin-game-btn">Rejoin Game</button>
+                <button class="btn btn-secondary" id="start-fresh-btn">Start Fresh</button>
             </div>
         </div>
     </div>
@@ -152,6 +154,6 @@
     <!-- Scripts -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="/frontend/js/game-client.js"></script>
-    <script src="/frontend/js/app.js"></script>
+    <script src="/frontend/js/player-app.js"></script>
 </body>
 </html>

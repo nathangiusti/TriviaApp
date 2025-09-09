@@ -77,11 +77,18 @@ See **[TESTING_PLAN.md](docs/TESTING_PLAN.md)** for comprehensive multiplayer te
 
 ```
 Backend (Python)          Frontend (JavaScript)        Testing
-├── Flask + SocketIO      ├── Vanilla JS + Socket.IO   ├── 89+ automated tests
-├── Real-time WebSocket   ├── Responsive UI             ├── Unit + integration  
-├── CSV question loading  ├── State persistence         ├── E2E with Selenium
-└── Game state management └── Auto-reconnection         └── Cross-platform testing
+├── Flask + SocketIO      ├── Separated Admin/Player    ├── 89+ automated tests
+├── Real-time WebSocket   ├── Context-Aware UI          ├── Unit + integration  
+├── CSV question loading  ├── Vanilla JS + Socket.IO    ├── E2E with Selenium
+└── Game state management ├── Responsive Design         └── Cross-platform testing
+                          └── Auto-reconnection
 ```
+
+### Frontend Architecture Separation
+- **`admin-app.js`** - Admin-specific logic (game control, question management)
+- **`player-app.js`** - Player-specific logic (joining games, answering questions)  
+- **`game-client.js`** - Shared WebSocket communication layer
+- **Context isolation** prevents admin/player UI conflicts and null reference errors
 
 ## 🛠️ Technology Stack
 

@@ -45,13 +45,15 @@ TriviaApp/
 │   ├── game_state.py         # Game logic & state
 │   └── websocket_manager.py  # WebSocket communication
 ├── frontend/                  # JavaScript frontend  
-│   ├── index.html            # Main application
+│   ├── index.html            # Player application
 │   ├── admin.html            # Admin panel
 │   ├── css/
 │   │   └── styles.css        # Responsive styling
 │   └── js/
-│       ├── game-client.js    # WebSocket client
-│       └── app.js            # UI logic
+│       ├── game-client.js    # WebSocket client (shared)
+│       ├── admin-app.js      # Admin-specific UI logic
+│       ├── player-app.js     # Player-specific UI logic
+│       └── app.js            # Legacy monolithic file (unused)
 ├── tests/                    # Test suite
 │   ├── test_*.py            # Unit tests
 │   ├── test_integration.py  # Integration tests
@@ -354,10 +356,11 @@ socket.on('response', () => {
 5. **Write tests** for the new event
 
 ### Adding New UI Component
-1. **Add HTML structure** to appropriate page
+1. **Add HTML structure** to appropriate page (`index.html` for player, `admin.html` for admin)
 2. **Add CSS styles** in `styles.css`
-3. **Add JavaScript logic** in `app.js`
-4. **Write component tests**
+3. **Add JavaScript logic** in context-appropriate file (`player-app.js` or `admin-app.js`)
+4. **Write component tests** with proper context isolation
+5. **Ensure null-safe DOM access** for cross-context compatibility
 
 ### Adding New Game Feature
 1. **Update data models** in `game_state.py`

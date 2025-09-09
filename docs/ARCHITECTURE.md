@@ -116,12 +116,14 @@ Client Events → WebSocket Manager → Game State Manager
 
 ```
 frontend/
-├── index.html          # Main application page
-├── admin.html         # Admin control panel
+├── index.html          # Player application page
+├── admin.html         # Admin control panel  
 ├── css/styles.css     # Responsive styling
 └── js/
-    ├── game-client.js # WebSocket client & connection management
-    └── app.js         # UI logic & event handling
+    ├── game-client.js # WebSocket client & connection management (shared)
+    ├── admin-app.js   # Admin-specific UI logic & event handling
+    ├── player-app.js  # Player-specific UI logic & event handling
+    └── app.js         # Legacy monolithic file (unused)
 ```
 
 ### Frontend Layers
@@ -132,11 +134,24 @@ frontend/
 - CSS animations and transitions
 - Cross-browser compatibility
 
-#### 2. Application Layer (`app.js`)
-- UI state management and screen transitions
-- Event handling for user interactions  
-- DOM manipulation and updates
+#### 2. Application Layer (Context-Separated)
+**Admin Application (`admin-app.js`)**:
+- Admin panel state management and transitions
+- Game control event handling (start game, manage questions)
+- Admin-specific DOM manipulation and updates
+- Admin authentication and session management
+
+**Player Application (`player-app.js`)**:
+- Player UI state management and screen transitions  
+- Team-focused event handling (join game, submit answers)
+- Player-specific DOM manipulation and updates
 - Browser storage management (localStorage)
+
+**Architectural Benefits**:
+- Prevents null reference errors from context confusion
+- Eliminates admin/player UI conflicts
+- Enables context-specific optimizations
+- Improves maintainability and debugging
 
 #### 3. Communication Layer (`game-client.js`)
 - WebSocket connection management

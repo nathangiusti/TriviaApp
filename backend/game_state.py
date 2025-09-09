@@ -175,12 +175,32 @@ class GameStateManager:
         if game.status != GameStatus.QUESTION_ACTIVE:
             raise ValueError("No active question to close")
         
+        # Get current question to compare answers
+        current_question = self.get_current_question(game_id)
+        if not current_question:
+            raise ValueError("Current question not found")
+        
         game.status = GameStatus.QUESTION_CLOSED
         
         current_answers = [
             ans for ans in game.answers 
             if ans.question_round == game.current_round and ans.question_num == game.current_question
         ]
+        
+        # Automatically grade all answers that haven't been manually graded
+        for answer in current_answers:
+            # Only auto-grade if not already manually graded
+            if answer.is_correct is None:
+                # Compare answer with correct answer (case-insensitive, trimmed)
+                is_correct = answer.answer_text.lower().strip() == current_question.answer.lower().strip()
+                
+                # Update answer with grading result
+                answer.is_correct = is_correct
+                answer.points_awarded = 1 if is_correct else 0
+                
+                # Update team score if correct
+                if is_correct:
+                    game.teams[answer.team_id].score += 1
         
         return current_answers
     
@@ -194,11 +214,18 @@ class GameStateManager:
         if not answer:
             raise ValueError("Answer not found")
         
-        answer.is_correct = is_correct
-        answer.points_awarded = points if is_correct else 0
+        # Calculate the score change needed
+        old_points = answer.points_awarded if answer.is_correct else 0
+        new_points = points if is_correct else 0
+        points_difference = new_points - old_points
         
-        if is_correct:
-            game.teams[team_id].score += points
+        # Update answer grading
+        answer.is_correct = is_correct
+        answer.points_awarded = new_points
+        
+        # Update team score by the difference (avoid double-scoring)
+        if points_difference != 0:
+            game.teams[team_id].score += points_difference
         
         return answer
     
