@@ -46,6 +46,7 @@ function setupPlayerEventHandlers() {
     
     // Question closed - show results to players
     gameClient.on('question_closed', (data) => {
+        console.log('PLAYER: Received question_closed event:', data);
         hideAnswerForm();
         displayQuestionResults(data);
     });
@@ -241,7 +242,9 @@ function hideAnswerForm() {
 }
 
 function displayQuestionResults(data) {
-    console.log('Displaying question results:', data);
+    console.log('PLAYER: Displaying question results:', data);
+    console.log('PLAYER: team_answer =', data.team_answer);
+    console.log('PLAYER: team_correct =', data.team_correct);
     
     // Hide answer form and submission status
     const answerForm = document.getElementById('answer-form');
@@ -255,8 +258,18 @@ function displayQuestionResults(data) {
     // Show results display
     const resultsDisplay = document.getElementById('results-display');
     if (resultsDisplay) {
+        console.log('PLAYER: Showing results display');
+        console.log('PLAYER: Before - display style:', resultsDisplay.style.display);
+        console.log('PLAYER: Before - hidden class:', resultsDisplay.classList.contains('hidden'));
+        
         resultsDisplay.classList.remove('hidden');
         resultsDisplay.style.display = 'block'; // Override any CSS hiding
+        
+        console.log('PLAYER: After - display style:', resultsDisplay.style.display);
+        console.log('PLAYER: After - hidden class:', resultsDisplay.classList.contains('hidden'));
+    } else {
+        console.error('PLAYER: results-display element not found');
+    }
         
         // Create results content
         let resultsHTML = '<div class="question-results">';
@@ -303,9 +316,11 @@ function displayQuestionResults(data) {
         // Update results content
         const resultsContent = document.getElementById('results-content');
         if (resultsContent) {
+            console.log('PLAYER: Setting results content HTML:', resultsHTML);
             resultsContent.innerHTML = resultsHTML;
+            console.log('PLAYER: Results content updated successfully');
         } else {
-            console.error('results-content element not found');
+            console.error('PLAYER: results-content element not found');
         }
     }
     

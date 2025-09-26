@@ -411,9 +411,15 @@ class WebSocketManager:
         game_id = connection.game_id
         team_id = data.get("team_id")
         round_num = data.get("round_num")
-        question_num = data.get("question_num")
+        question_num_data = data.get("question_num")
         is_correct = data.get("is_correct")
         points = data.get("points", 1)
+        
+        # Handle case where question_num is passed as an object or integer
+        if isinstance(question_num_data, dict):
+            question_num = question_num_data.get("question_num")
+        else:
+            question_num = question_num_data
         
         answer = self.gsm.grade_answer(game_id, team_id, round_num, question_num, is_correct, points)
         

@@ -379,6 +379,61 @@ class TestWebSocketManager:
             assert msg.data["points_awarded"] == 1
             assert msg.data["new_score"] == 1  # Updated score after manual grading
     
+    def test_grade_answer_with_question_object(self):
+        """Test grading when question_num is passed as an object instead of integer"""
+        # Setup game with closed question
+        self.wsm.connect_client("admin1")
+        self.wsm.connect_client("client1")
+        
+        # Complete setup through question closing
+        admin_login = WebSocketMessage(EventType.ADMIN_LOGIN, {
+            "game_id": "test_game",
+            "password": "admin123"
+        })
+        self.wsm.handle_message("admin1", admin_login)
+        
+        join_responses = self.wsm.handle_message("client1", WebSocketMessage(EventType.JOIN_GAME, {
+            "game_id": "test_game",
+            "team_name": "Team Alpha"
+        }))
+        
+        # Get team_id from join response
+        team_joined_msg = next(r for r in join_responses if r.event_type == EventType.TEAM_JOINED)
+        team_id = team_joined_msg.data["team_id"]
+        
+        self.wsm.handle_message("admin1", WebSocketMessage(EventType.START_GAME, {"password": "admin123"}))
+        self.wsm.handle_message("admin1", WebSocketMessage(EventType.START_QUESTION, {"password": "admin123"}))
+        self.wsm.handle_message("client1", WebSocketMessage(EventType.SUBMIT_ANSWER, {"answer": "Nate"}))
+        self.wsm.handle_message("admin1", WebSocketMessage(EventType.CLOSE_QUESTION, {"password": "admin123"}))
+        
+        # Grade answer with question_num as object (mimicking the bug from the logs)
+        grade_answer = WebSocketMessage(EventType.GRADE_ANSWER, {
+            "team_id": team_id,
+            "round_num": 1,
+            "question_num": {
+                "round": 1,
+                "question_num": 1,
+                "question": "What is your name?",
+                "answer": "Nathan"
+            },
+            "is_correct": True,
+            "points": 1
+        })
+        
+        responses = self.wsm.handle_message("admin1", grade_answer)
+        
+        # Should not get an error
+        error_msgs = [r for r in responses if r.event_type == EventType.ERROR]
+        assert len(error_msgs) == 0, f"Expected no errors but got: {[e.data for e in error_msgs]}"
+        
+        answer_graded_msgs = [r for r in responses if r.event_type == EventType.ANSWER_GRADED]
+        assert len(answer_graded_msgs) == 2  # Broadcast to both clients
+        
+        for msg in answer_graded_msgs:
+            assert msg.data["is_correct"] is True
+            assert msg.data["points_awarded"] == 1
+            assert msg.data["new_score"] == 1  # Updated score after manual grading
+    
     def test_get_leaderboard(self):
         self.wsm.connect_client("client1")
         
